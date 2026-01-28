@@ -1,0 +1,32 @@
+.rr-container {
+  width: min(1200px, 100%);
+  margin: 0 auto;
+  padding: 0;
+}
+
+.rr-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.rr-row {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.rr-surface {
+  background: var(--color-bg-secondary);
+  border: var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-subtle);
+}
+
+.rr-divider {
+  height: 1px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+}
