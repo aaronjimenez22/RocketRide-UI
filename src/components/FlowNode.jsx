@@ -5,7 +5,7 @@ const HEADER_HEIGHT = 64;
 const PORT_ROW_HEIGHT = 44;
 const PORT_SECTION_PADDING = 12;
 const PORT_DOT_SIZE = 32;
-const PORT_HITBOX_SIZE = Math.round(PORT_DOT_SIZE * 1.5);
+const PORT_HITBOX_SIZE = 55;
 
 function FlowPort({
   nodeId,

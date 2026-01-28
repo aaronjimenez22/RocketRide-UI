@@ -634,16 +634,16 @@
   min-height: var(--rr-node-port-row-height);
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 5px;
   position: relative;
 }
 
 .rr-flow-port--input {
-  margin-left: -55px;
+  margin-left: -60px;
 }
 
 .rr-flow-port--output {
-  margin-right: -55px;
+  margin-right: -60px;
   justify-content: flex-end;
 }
 
@@ -692,6 +692,7 @@
   flex-shrink: 0;
   width: var(--rr-port-hitbox-size, 48px);
   height: var(--rr-port-hitbox-size, 48px);
+  align-self: center;
 }
 
 .rr-flow-port__plus {
@@ -736,24 +737,28 @@
 
 .rr-flow-port__handle {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  width: var(--rr-port-hitbox-size, 55px) !important;
+  height: var(--rr-port-hitbox-size, 55px) !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
   background: transparent;
   border: none;
   cursor: crosshair;
   opacity: 0;
   pointer-events: all;
   z-index: 2;
-  left: 0 !important;
-  top: 0 !important;
   right: auto !important;
   bottom: auto !important;
-  transform: none !important;
 }
 
 .react-flow__handle.rr-flow-port__handle {
   pointer-events: all !important;
+  left: 50% !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%) !important;
 }
 
 .rr-flow-node.is-debug .rr-flow-port__handle {
