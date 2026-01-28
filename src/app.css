@@ -517,8 +517,66 @@
 }
 
 .react-flow__edge-path {
-  stroke: rgba(var(--color-accent-primary-rgb), 0.6);
-  stroke-width: 1.4;
+  stroke: rgba(221, 226, 221, 0.35);
+  stroke-width: 2; /* thicker edge lines */
+}
+
+.react-flow__edge-interaction {
+  stroke-width: 28; /* larger hitbox for easier selection */
+}
+
+.rr-flow-edge-path {
+  fill: none;
+  stroke: rgba(221, 226, 221, 0.35);
+  stroke-width: 2;
+  transition: stroke var(--transition-base), opacity var(--transition-base);
+}
+
+.rr-flow-edge-path.is-active {
+  stroke: rgba(var(--color-accent-primary-rgb), 0.7);
+}
+
+.rr-flow-edge__actions {
+  position: absolute;
+  pointer-events: all;
+}
+
+.rr-flow-edge__delete {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  border: var(--border-subtle);
+  background: var(--color-bg-secondary);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-subtle);
+  transition: background var(--transition-base), color var(--transition-base),
+    border-color var(--transition-base), transform var(--transition-fast);
+}
+
+.rr-flow-edge__delete:hover {
+  background: var(--color-bg-secondary);
+  color: #e07b5f;
+  border-color: rgba(var(--color-accent-primary-rgb), 0.35);
+  transform: none;
+}
+
+.rr-flow-edge__delete.is-selected {
+  transform: scale(1.06);
+  border-color: rgba(var(--color-accent-primary-rgb), 0.5);
+}
+
+.rr-flow-edge__delete-icon {
+  width: 18px;
+  height: 18px;
+  filter: brightness(0) saturate(100%) invert(100%);
+}
+
+.rr-flow-edge__delete:hover .rr-flow-edge__delete-icon {
+  filter: brightness(0) saturate(100%) invert(58%) sepia(23%)
+    saturate(1800%) hue-rotate(329deg) brightness(96%) contrast(92%);
 }
 
 .react-flow__controls button {

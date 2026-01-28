@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -7,6 +7,7 @@ import ReactFlow, {
   useNodesState,
 } from "reactflow";
 import FlowNode from "../components/FlowNode";
+import FlowEdge from "../components/FlowEdge";
 import driveIcon from "../assets/project-icons/drive.png";
 import classificationIcon from "../assets/project-icons/classification.png";
 import openAiIcon from "../assets/project-icons/openAI.png";
@@ -154,9 +155,18 @@ const initialEdges = [
 export default function ProjectsCanvas({ flowOptions }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState(null);
 
   const onConnect = (connection) =>
     setEdges((eds) => addEdge(connection, eds));
+
+  const onConnectStart = () => {
+    setSelectedEdgeId(null);
+  };
+
+  const handleDeleteEdge = (edgeId) =>
+    setEdges((eds) => eds.filter((edge) => edge.id !== edgeId));
 
   const portLabelByHandle = useMemo(() => {
     const portMap = new Map();
@@ -203,7 +213,23 @@ export default function ProjectsCanvas({ flowOptions }) {
     [nodes, connectedPorts]
   );
 
+  const decoratedEdges = useMemo(
+    () =>
+      edges.map((edge) => ({
+        ...edge,
+        type: "rrEdge",
+        data: {
+          ...edge.data,
+          isHovered: edge.id === hoveredEdgeId,
+          isSelected: edge.id === selectedEdgeId,
+          onDelete: handleDeleteEdge,
+        },
+      })),
+    [edges, hoveredEdgeId, selectedEdgeId]
+  );
+
   const nodeTypes = useMemo(() => ({ rrNode: FlowNode }), []);
+  const edgeTypes = useMemo(() => ({ rrEdge: FlowEdge }), []);
 
   const options = useMemo(
     () => ({
@@ -218,12 +244,19 @@ export default function ProjectsCanvas({ flowOptions }) {
     <div className="rr-canvas">
       <ReactFlow
         nodes={decoratedNodes}
-        edges={edges}
+        edges={decoratedEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectStart={onConnectStart}
         isValidConnection={isValidConnection}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
+        onEdgeMouseLeave={() => setHoveredEdgeId(null)}
+        onEdgeClick={(_, edge) => setSelectedEdgeId(edge.id)}
+        onPaneClick={() => setSelectedEdgeId(null)}
+        onNodeClick={() => setSelectedEdgeId(null)}
         fitView={options.fitView}
         minZoom={options.minZoom}
         maxZoom={options.maxZoom}

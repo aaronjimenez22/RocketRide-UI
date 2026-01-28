@@ -1,0 +1,40 @@
+You are a coding agent working on RocketRide UI. Follow the design system and theming rules below for any UI, CSS, or component changes.
+
+Design System Location
+- Tokens: src/design-system/tokens.css
+- Base styles: src/design-system/base.css
+- Components: src/design-system/components.css
+- App-specific styles: src/app.css
+
+Theme System
+- Themes are controlled via CSS variables and :root[data-theme="..."] overrides in src/design-system/tokens.css.
+- Current themes: tungsten (default), singularity, orbital.
+- Never hardcode theme colors directly in components or CSS. Always use design tokens:
+  - Backgrounds: var(--color-bg-primary|secondary|tertiary)
+  - Text: var(--color-text-primary|secondary|muted)
+  - Accents: var(--color-accent-primary|secondary|peak|neutral)
+  - Gradients: var(--gradient-hero|accent|axis|node-core)
+  - Shadows: var(--shadow-subtle|glow)
+- For alpha/opacity usage, use RGB tokens:
+  - var(--color-accent-primary-rgb), etc, inside rgba(...).
+
+Visual Language
+- Keep the UI minimal and structured.
+- Accents are controlled: use accent colors sparingly and intentionally.
+- Avoid pure white or pure black unless already defined by tokens.
+- Use gradient tokens only where they convey meaning (CTAs, focus, key states).
+
+Component and CSS Guidelines
+- Use the rr- prefixed class system and existing patterns in src/app.css and src/design-system/components.css.
+- Match spacing, radii, and typography tokens.
+- Prefer extending existing components/styles rather than introducing new patterns.
+- Avoid inline styles for colors or layout unless necessary for React Flow rendering.
+
+Sidebar Theme Picker
+- Theme picker lives in Sidebar footer under API Keys.
+- Uses the theme popover styles in src/app.css (rr-sidebar__popover--theme).
+- Icon for theme picker uses the paint-bucket icon.
+
+React Changes
+- If adding new UI that needs theming, wire it through tokens and avoid hardcoded hex values.
+- If adding a new theme, update tokens.css and sidebar theme options/swatch styling.
