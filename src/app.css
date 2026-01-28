@@ -639,11 +639,11 @@
 }
 
 .rr-flow-port--input {
-  margin-left: -60px;
+  margin-left: -65px;
 }
 
 .rr-flow-port--output {
-  margin-right: -60px;
+  margin-right: -65px;
   justify-content: flex-end;
 }
 

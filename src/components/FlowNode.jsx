@@ -1,8 +1,8 @@
 import { memo, useMemo, useState } from "react";
 import { Handle, Position } from "reactflow";
 
-const HEADER_HEIGHT = 64;
-const PORT_ROW_HEIGHT = 44;
+const HEADER_HEIGHT = 30;
+const PORT_ROW_HEIGHT = 30;
 const PORT_SECTION_PADDING = 12;
 const PORT_DOT_SIZE = 32;
 const PORT_HITBOX_SIZE = 55;
@@ -31,7 +31,7 @@ function FlowPort({
   return (
     <div
       className={[
-        "rr-flow-port nodrag",
+        "rr-flow-port",
         isOutput ? "rr-flow-port--output" : "rr-flow-port--input",
         isHovered ? "is-hovered" : "",
         isActive ? "is-active" : "",
@@ -39,8 +39,6 @@ function FlowPort({
       ]
         .filter(Boolean)
         .join(" ")}
-      onMouseEnter={onHoverStart}
-      onMouseLeave={onHoverEnd}
     >
       {isOutput && <span className={labelClassName}>{port.label}</span>}
       <div
@@ -51,6 +49,8 @@ function FlowPort({
           "--rr-port-dot-size": `${PORT_DOT_SIZE}px`,
           "--rr-port-hitbox-size": `${PORT_HITBOX_SIZE}px`,
         }}
+        onMouseEnter={onHoverStart}
+        onMouseLeave={onHoverEnd}
       >
         <div className="rr-flow-port__dot" aria-hidden="true">
           <span className="rr-flow-port__plus">+</span>
@@ -65,8 +65,6 @@ function FlowPort({
             event.stopPropagation();
             onActivate(port.id);
           }}
-          onMouseEnter={onHoverStart}
-          onMouseLeave={onHoverEnd}
         />
       </div>
       {!isOutput && <span className={labelClassName}>{port.label}</span>}
