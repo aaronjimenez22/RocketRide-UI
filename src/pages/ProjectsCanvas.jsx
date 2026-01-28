@@ -198,7 +198,6 @@ export default function ProjectsCanvas({ flowOptions }) {
         data: {
           ...node.data,
           connectedPorts,
-          debugHandles: true,
         },
       })),
     [nodes, connectedPorts]

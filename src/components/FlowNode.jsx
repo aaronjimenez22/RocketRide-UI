@@ -1,12 +1,15 @@
 import { memo, useMemo, useState } from "react";
 import { Handle, Position } from "reactflow";
 
+// Layout constants for the node card and connection rows.
 const HEADER_HEIGHT = 30;
 const PORT_ROW_HEIGHT = 30;
 const PORT_SECTION_PADDING = 12;
+// Visible dot size vs draggable hitbox size.
 const PORT_DOT_SIZE = 32;
 const PORT_HITBOX_SIZE = 55;
 
+// A single port row that renders label + connection anchor/handle.
 function FlowPort({
   nodeId,
   port,
@@ -18,7 +21,9 @@ function FlowPort({
   onHoverEnd,
   onActivate,
 }) {
+  // Output ports render label before anchor; inputs render label after.
   const isOutput = port.type === "output";
+  // Label styling reacts to hover and port type.
   const labelClassName = [
     "rr-flow-port__label",
     isHovered ? "is-highlighted" : "",
@@ -40,6 +45,7 @@ function FlowPort({
         .filter(Boolean)
         .join(" ")}
     >
+      {/* Output labels sit to the left of the anchor */}
       {isOutput && <span className={labelClassName}>{port.label}</span>}
       <div
         className="rr-flow-port__anchor nodrag"
@@ -52,26 +58,38 @@ function FlowPort({
         onMouseEnter={onHoverStart}
         onMouseLeave={onHoverEnd}
       >
+        {/* Visual connection point */}
         <div className="rr-flow-port__dot" aria-hidden="true">
           <span className="rr-flow-port__plus">+</span>
         </div>
-        {/* Connection handle overlays the anchor for drag-to-connect */}
+        {/* Connection handle overlays the anchor for drag-to-connect.
+            Note: connection line origin uses the handle's DOM bounds. */}
         <Handle
           id={`${nodeId}:${port.id}`}
           type={isOutput ? "source" : "target"}
           position={isOutput ? Position.Right : Position.Left}
           className="rr-flow-port__handle nodrag"
+          // Force the handle to be centered on the dot (not the node edge).
+          style={{
+            left: "50%",
+            top: "50%",
+            right: "auto",
+            bottom: "auto",
+            transform: "translate(-50%, -50%)",
+          }}
           onClick={(event) => {
             event.stopPropagation();
             onActivate(port.id);
           }}
         />
       </div>
+      {/* Input labels sit to the right of the anchor */}
       {!isOutput && <span className={labelClassName}>{port.label}</span>}
     </div>
   );
 }
 
+// React Flow node renderer (card, menu, and ports).
 function FlowNode({ id, data }) {
   const [isHovered, setIsHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -81,6 +99,7 @@ function FlowNode({ id, data }) {
   const [hoveredPortId, setHoveredPortId] = useState(null);
   const [activePortId, setActivePortId] = useState(null);
 
+  // Menu remains visible when opened even if node hover leaves.
   const showMenu = isHovered || menuOpen;
   const inputs = data.inputs ?? [];
   const outputs = data.outputs ?? [];
@@ -108,6 +127,7 @@ function FlowNode({ id, data }) {
     }
   };
 
+  // CSS variables allow the layout to be tweaked in CSS.
   const styleVars = useMemo(
     () => ({
       "--rr-node-header-height": `${HEADER_HEIGHT}px`,
@@ -123,6 +143,7 @@ function FlowNode({ id, data }) {
         "rr-flow-node",
         showMenu ? "is-hovered" : "",
         data.state ? `is-${data.state}` : "",
+        // Enable to visualize hitbox/handle bounds for debugging alignment.
         data.debugHandles ? "is-debug" : "",
       ]
         .filter(Boolean)
@@ -134,6 +155,7 @@ function FlowNode({ id, data }) {
         setHoveredPortId(null);
       }}
     >
+      {/* Top-right node menu */}
       <div className="rr-flow-node__menu">
         <button
           type="button"
@@ -188,6 +210,7 @@ function FlowNode({ id, data }) {
         )}
       </div>
 
+      {/* Header contains icon + title/meta */}
       <div className="rr-flow-node__header">
         <div className="rr-flow-node__icon">
           {data.iconSrc ? (
@@ -228,6 +251,7 @@ function FlowNode({ id, data }) {
         </div>
       </div>
 
+      {/* Ports are split into input (left) and output (right) columns */}
       <div className="rr-flow-node__ports">
         <div className="rr-flow-node__ports-column">
           {inputs.map((input) => (

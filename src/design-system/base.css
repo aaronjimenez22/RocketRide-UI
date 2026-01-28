@@ -40,6 +40,6 @@ textarea {
 }
 
 ::selection {
-  background: rgba(199, 101, 48, 0.35);
+  background: rgba(var(--color-accent-primary-rgb), 0.35);
   color: #ffffff;
 }

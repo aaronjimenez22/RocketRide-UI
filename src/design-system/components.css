@@ -28,12 +28,12 @@
 
 .rr-button--primary:hover {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 8px 18px rgba(199, 101, 48, 0.18);
+    0 8px 18px rgba(var(--color-accent-primary-rgb), 0.18);
   transform: translateY(-1px);
 }
 
 .rr-button--primary:active {
-  background: linear-gradient(135deg, #6b2d1e 0%, #833c29 100%);
+  background: var(--gradient-accent-active);
   transform: translateY(0);
 }
 
@@ -136,7 +136,7 @@
 
 .rr-nav-item.is-active {
   color: var(--color-accent-primary);
-  background: rgba(199, 101, 48, 0.12);
+  background: rgba(var(--color-accent-primary-rgb), 0.12);
 }
 
 .rr-input {
@@ -155,7 +155,7 @@
 
 .rr-input:focus {
   outline: none;
-  border-color: rgba(199, 101, 48, 0.6);
+  border-color: rgba(var(--color-accent-primary-rgb), 0.6);
   box-shadow: var(--shadow-glow);
 }
 
@@ -173,7 +173,7 @@
 
 .rr-select:focus {
   outline: none;
-  border-color: rgba(199, 101, 48, 0.6);
+  border-color: rgba(var(--color-accent-primary-rgb), 0.6);
   box-shadow: var(--shadow-glow);
 }
 
@@ -229,7 +229,7 @@
 }
 
 .rr-checkbox input:checked {
-  border-color: rgba(199, 101, 48, 0.6);
+  border-color: rgba(var(--color-accent-primary-rgb), 0.6);
   box-shadow: var(--shadow-glow);
 }
 
@@ -278,8 +278,8 @@
 }
 
 .rr-toggle input:checked {
-  background: rgba(199, 101, 48, 0.3);
-  border-color: rgba(199, 101, 48, 0.6);
+  background: rgba(var(--color-accent-primary-rgb), 0.3);
+  border-color: rgba(var(--color-accent-primary-rgb), 0.6);
 }
 
 .rr-toggle input:checked::after {
@@ -317,7 +317,7 @@
 }
 
 .rr-tab.is-active {
-  background: rgba(199, 101, 48, 0.2);
+  background: rgba(var(--color-accent-primary-rgb), 0.2);
   color: var(--color-text-primary);
 }
 

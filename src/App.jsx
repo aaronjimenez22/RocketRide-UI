@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Sidebar from "./components/Sidebar.jsx";
 import Home from "./pages/Home.jsx";
 import DesignSystem from "./pages/DesignSystem.jsx";
@@ -8,6 +8,9 @@ import PlaceholderPage from "./pages/PlaceholderPage.jsx";
 
 export default function App() {
   const [activeView, setActiveView] = useState("projects");
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("rr-theme") ?? "tungsten"
+  );
 
   const flowOptions = useMemo(
     () => ({
@@ -43,9 +46,19 @@ export default function App() {
 
   const isCanvas = activeView === "project-canvas";
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("rr-theme", theme);
+  }, [theme]);
+
   return (
     <div className="rr-app">
-      <Sidebar activeView={activeView} onNavigate={setActiveView} />
+      <Sidebar
+        activeView={activeView}
+        onNavigate={setActiveView}
+        theme={theme}
+        onThemeChange={setTheme}
+      />
       <main className={`rr-main ${isCanvas ? "is-canvas" : ""}`}>
         {mainContent}
       </main>
