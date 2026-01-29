@@ -214,6 +214,10 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
+.rr-projects__table th .rr-sort span {
+  text-transform: uppercase;
+}
+
 .rr-projects__table tbody tr {
   transition: background var(--transition-base);
   cursor: pointer;
@@ -233,6 +237,7 @@
 .rr-projects__name {
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
+  text-transform: uppercase;
 }
 
 .rr-projects__meta {
@@ -318,7 +323,7 @@
   height: 28px;
   border-radius: var(--radius-pill);
   border: var(--border-subtle);
-  background: rgba(var(--color-accent-neutral-rgb), 0.18);
+  background: rgba(var(--color-bg-tertiary-rgb), 0.9);
   display: grid;
   place-items: center;
   margin-left: -6px;

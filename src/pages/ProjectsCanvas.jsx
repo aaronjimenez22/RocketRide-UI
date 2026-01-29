@@ -149,6 +149,164 @@ const initialEdges = [
   },
 ];
 
+const NODE_GROUPS = [
+  {
+    id: "source",
+    label: "Source",
+    nodes: [
+      "Aparavi Data Catalog",
+      "Atlassian Confluence",
+      "AWS S3",
+      "Azure",
+      "Chat",
+      "Dropper",
+      "Google Gmail - Enterprise",
+      "Google Gmail - Personal",
+      "Google Drive - Enterprise",
+      "Google Drive - Personal",
+      "Microsoft OneDrive - Enterprise",
+      "Microsoft OneDrive - Personal",
+      "Microsoft SharePoint - Enterprise",
+      "Object Storage",
+      "Microsoft Outlook - Enterprise",
+      "Microsoft Outlook - Personal",
+      "Aparavi Sample Data",
+      "File System Simulator",
+      "Slack - Enterprise",
+      "Slack - Personal",
+      "Web Crawler - FireCrawl",
+      "Web Hook",
+    ],
+  },
+  {
+    id: "embedding",
+    label: "Embedding",
+    nodes: ["Embedding - Image", "Embedding - OpenAI", "Embedding - Transformer"],
+  },
+  {
+    id: "llm",
+    label: "LLM",
+    nodes: [
+      "LLM - Anthropic",
+      "LLM - Amazon Bedrock",
+      "LLM - Deepseek",
+      "LLM - Gemini",
+      "LLM - IBM Granite",
+      "LLM - Mistral AI",
+      "LLM - Ollama",
+      "LLM - OpenAI",
+      "LLM - Perplexity",
+      "LLM - VertexAI - Enterprise",
+      "LLM - VertexAI - Personal",
+      "LLM - xAI",
+    ],
+  },
+  {
+    id: "database",
+    label: "Database",
+    nodes: ["Database - MySQL"],
+  },
+  {
+    id: "image",
+    label: "Image",
+    nodes: [
+      "Image - Cleanup",
+      "Image - Mistral Vision",
+      "Image - OCR",
+      "Image - Thumbnail",
+    ],
+  },
+  {
+    id: "preprocessor",
+    label: "Preprocessor",
+    nodes: [
+      "Preprocessor - Chonkie",
+      "Preprocessor - Code",
+      "Preprocessor - General Text",
+      "Preprocessor - LLM",
+    ],
+  },
+  {
+    id: "store",
+    label: "Store",
+    nodes: [
+      "Vector Store - Astra DB",
+      "Vector Store - Chroma",
+      "Vector Store - Milvus",
+      "Vector Store - MongoDB Atlas",
+      "Vector Store - Pinecone",
+      "Vector Store - PostgreSQL",
+      "Vector Store - Qdrant",
+      "Vector Store - Weaviate",
+    ],
+  },
+  {
+    id: "text",
+    label: "Text",
+    nodes: [
+      "Text - Anonymize",
+      "Text - Classification",
+      "Text - Dictionary",
+      "Text - Data Extractor",
+      "Text - Prompt",
+      "Text - Question",
+      "Text - Summarization: LLM",
+    ],
+  },
+  {
+    id: "audio",
+    label: "Audio",
+    nodes: ["Audio - Transcribe"],
+  },
+  {
+    id: "video",
+    label: "Video",
+    nodes: ["Video - Frame Grabber"],
+  },
+  {
+    id: "data",
+    label: "Data",
+    nodes: [
+      "Data - Fingerprinter",
+      "Data - LlamaParse",
+      "Data - Parser",
+      "Data - Reducto",
+    ],
+  },
+  {
+    id: "infrastructure",
+    label: "Infrastructure",
+    nodes: [
+      "HTTP Results",
+      "Return Answers",
+      "Return Audio",
+      "Return Documents",
+      "Return Image",
+      "Return Questions",
+      "Return Table",
+      "Return Text",
+      "Return Video",
+    ],
+  },
+];
+
+const NODE_DESCRIPTIONS = new Map([
+  ["Aparavi Data Catalog", "Index and manage enterprise data sources."],
+  ["AWS S3", "Connect to S3 buckets for ingestion and storage."],
+  ["Google Drive - Enterprise", "Read from Drive with admin controls."],
+  ["Embedding - OpenAI", "Generate embeddings using OpenAI models."],
+  ["LLM - OpenAI", "Call OpenAI models for generative tasks."],
+  ["Vector Store - Pinecone", "Store embeddings in Pinecone."],
+  ["Text - Classification", "Classify text into labeled categories."],
+  ["Audio - Transcribe", "Convert audio to text transcripts."],
+  ["Video - Frame Grabber", "Extract frames for downstream processing."],
+  ["Return Text", "Return text output to downstream apps."],
+]);
+
+const getNodeDescription = (label) =>
+  NODE_DESCRIPTIONS.get(label) ??
+  "Configure this node to match your pipeline requirements.";
+
 export default function ProjectsCanvas({ flowOptions }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -166,10 +324,14 @@ export default function ProjectsCanvas({ flowOptions }) {
   const [projectIcon, setProjectIcon] = useState("file");
   const [projectIconColor, setProjectIconColor] = useState("#ff8a3c");
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [inventoryQuery, setInventoryQuery] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
 
   const shortcutsRef = useRef(null);
   const saveRef = useRef(null);
   const iconRef = useRef(null);
+  const inventoryRef = useRef(null);
   const saveTimerRef = useRef(null);
   const titleInputRef = useRef(null);
   const previousTitleRef = useRef(projectTitle);
@@ -289,12 +451,14 @@ export default function ProjectsCanvas({ flowOptions }) {
       const clickedShortcuts = shortcutsRef.current?.contains(event.target);
       const clickedSave = saveRef.current?.contains(event.target);
       const clickedIcon = iconRef.current?.contains(event.target);
-      if (clickedShortcuts || clickedSave || clickedIcon) {
+      const clickedInventory = inventoryRef.current?.contains(event.target);
+      if (clickedShortcuts || clickedSave || clickedIcon || clickedInventory) {
         return;
       }
       setShortcutsOpen(false);
       setSaveMenuOpen(false);
       setIconMenuOpen(false);
+      setInventoryOpen(false);
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -338,6 +502,65 @@ export default function ProjectsCanvas({ flowOptions }) {
       ? "cloud-upload"
       : "cloud-done"
     : "save";
+
+  const filteredGroups = useMemo(() => {
+    const query = inventoryQuery.trim().toLowerCase();
+    if (!query) {
+      return NODE_GROUPS;
+    }
+    return NODE_GROUPS.map((group) => {
+      const nodes = group.nodes.filter((node) =>
+        node.toLowerCase().includes(query)
+      );
+      return { ...group, nodes };
+    }).filter((group) => group.nodes.length > 0);
+  }, [inventoryQuery]);
+
+  const toggleGroup = (groupId) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
+
+  const addInventoryNode = (label, groupId) => {
+    const baseX = window.innerWidth * 0.55;
+    const baseY = window.innerHeight * 0.5;
+    const position = reactFlowInstance
+      ? reactFlowInstance.project({
+          x: baseX + Math.random() * 120 - 60,
+          y: baseY + Math.random() * 120 - 60,
+        })
+      : { x: baseX, y: baseY };
+    const nodeId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const isSource = groupId === "source";
+    const icon = getIconForKey(label);
+    const newNode = {
+      id: nodeId,
+      position,
+      type: "rrNode",
+      data: {
+        title: label,
+        iconSrc: icon.url,
+        meta: groupId.toUpperCase(),
+        inputs: isSource ? [] : [{ id: "in", label: "In", type: "input" }],
+        outputs: [
+          {
+            id: "out",
+            label: isSource ? "Data" : "Out",
+            type: "output",
+          },
+        ],
+      },
+    };
+    setNodes((prev) => [...prev, newNode]);
+    triggerSave();
+  };
 
   return (
     <div className="rr-canvas">
@@ -567,6 +790,11 @@ export default function ProjectsCanvas({ flowOptions }) {
               type="button"
               className={`rr-canvas-tool ${item.primary ? "is-primary" : ""}`}
               data-tooltip={item.label}
+              onClick={
+                item.id === "add-node"
+                  ? () => setInventoryOpen((value) => !value)
+                  : undefined
+              }
             >
               <img src={iconUrl(item.icon)} alt="" />
             </button>
@@ -623,6 +851,83 @@ export default function ProjectsCanvas({ flowOptions }) {
           </button>
         </div>
       </div>
+      <aside
+        ref={inventoryRef}
+        className={`rr-node-inventory ${inventoryOpen ? "is-open" : ""}`}
+      >
+        <div className="rr-node-inventory__header">
+          <h2>Node Inventory</h2>
+          <button
+            type="button"
+            className="rr-node-inventory__close"
+            onClick={() => setInventoryOpen(false)}
+          >
+            <img src={iconUrl("close")} alt="" />
+          </button>
+        </div>
+        <div className="rr-node-inventory__search">
+          <img src={iconUrl("search")} alt="" />
+          <input
+            type="text"
+            value={inventoryQuery}
+            onChange={(event) => setInventoryQuery(event.target.value)}
+            placeholder="Search nodes"
+          />
+        </div>
+        <div className="rr-node-inventory__list">
+          {filteredGroups.map((group) => {
+            const collapsed = collapsedGroups.has(group.id);
+            const showNodes = !collapsed || inventoryQuery.trim().length > 0;
+            return (
+              <div key={group.id} className="rr-node-group">
+                <button
+                  type="button"
+                  className="rr-node-group__toggle"
+                  onClick={() => toggleGroup(group.id)}
+                >
+                  <span>{group.label}</span>
+                  <img
+                    src={iconUrl(collapsed ? "chevron-right" : "chevron-down")}
+                    alt=""
+                  />
+                </button>
+                {showNodes && (
+                  <div className="rr-node-group__items">
+                    {group.nodes.map((node) => {
+                      const icon = getIconForKey(node);
+                      return (
+                        <button
+                          key={node}
+                          type="button"
+                          className="rr-node-item"
+                          onClick={() => addInventoryNode(node, group.id)}
+                        >
+                          <span className="rr-node-item__icon">
+                            <img src={icon.url} alt="" />
+                          </span>
+                          <span className="rr-node-item__label">{node}</span>
+                          <span className="rr-node-item__tooltip">
+                            <span className="rr-node-item__tooltip-title">
+                              {node}
+                            </span>
+                            <span className="rr-node-item__tooltip-body">
+                              {getNodeDescription(node)}
+                            </span>
+                            <span className="rr-node-item__tooltip-doc">
+                              <img src={iconUrl("file")} alt="" />
+                              Docs
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </aside>
       <ReactFlow
         nodes={decoratedNodes}
         edges={decoratedEdges}

@@ -45,6 +45,7 @@
   --color-bg-primary-rgb: 30, 30, 24;
   --color-bg-secondary-rgb: 56, 56, 54;
   --color-bg-tertiary-rgb: 96, 104, 92;
+  --color-surface-node: #2c2c2c;
 
   --color-accent-primary: #c76530;
   --color-accent-primary-rgb: 199, 101, 48;
@@ -87,6 +88,7 @@
   --color-bg-primary-rgb: 7, 11, 18;
   --color-bg-secondary-rgb: 14, 22, 34;
   --color-bg-tertiary-rgb: 26, 35, 48;
+  --color-surface-node: #1a1f2b;
 
   --color-accent-primary: #ff8a3c;
   --color-accent-primary-rgb: 255, 138, 60;
@@ -135,6 +137,7 @@
   --color-bg-primary-rgb: 28, 28, 28;
   --color-bg-secondary-rgb: 36, 36, 36;
   --color-bg-tertiary-rgb: 46, 46, 46;
+  --color-surface-node: #2c2c2c;
 
   --color-accent-primary: #e04a2f;
   --color-accent-primary-rgb: 224, 74, 47;
