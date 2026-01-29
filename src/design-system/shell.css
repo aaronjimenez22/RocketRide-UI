@@ -1,0 +1,39 @@
+/* App shell layout */
+.rr-app {
+  display: flex;
+  height: 100vh;
+  min-height: 100vh;
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+}
+
+.rr-main {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+  height: 100vh;
+}
+
+.rr-main.is-canvas {
+  overflow: hidden;
+}
+
+.rr-canvas {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  background: radial-gradient(
+    circle at top left,
+    rgba(255, 255, 255, 0.03),
+    transparent 55%
+  );
+}
+
+.rr-page {
+  flex: 1;
+  overflow-y: auto;
+  height: 100%;
+  width: 100%;
+  padding: var(--space-9) var(--space-8);
+}

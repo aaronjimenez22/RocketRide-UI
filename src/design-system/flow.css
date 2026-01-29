@@ -1,0 +1,847 @@
+/* React Flow base */
+.react-flow__renderer {
+  background: transparent;
+}
+
+.react-flow__node-default,
+.react-flow__node-input,
+.react-flow__node-output {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+}
+
+.react-flow__node-rrNode {
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+.react-flow__node-input,
+.react-flow__node-output {
+  border-color: rgba(var(--color-accent-primary-rgb), 0.4);
+}
+
+.react-flow__edge-path {
+  stroke: rgba(221, 226, 221, 0.35);
+  stroke-width: 2; /* thicker edge lines */
+}
+
+.react-flow__edge-interaction {
+  stroke-width: 28; /* larger hitbox for easier selection */
+}
+
+.rr-flow-edge-path {
+  fill: none;
+  stroke: rgba(221, 226, 221, 0.35);
+  stroke-width: 2;
+  transition: stroke var(--transition-base), opacity var(--transition-base);
+}
+
+.rr-flow-edge-path.is-active {
+  stroke: rgba(var(--color-accent-primary-rgb), 0.7);
+}
+
+.rr-flow-edge__actions {
+  position: absolute;
+  pointer-events: all;
+}
+
+.rr-flow-edge__delete {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  border: var(--border-subtle);
+  background: var(--color-bg-secondary);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-subtle);
+  transition: background var(--transition-base), color var(--transition-base),
+    border-color var(--transition-base), transform var(--transition-fast);
+}
+
+.rr-flow-edge__delete:hover {
+  background: var(--color-bg-secondary);
+  color: #e07b5f;
+  border-color: rgba(var(--color-accent-primary-rgb), 0.35);
+  transform: none;
+}
+
+.rr-flow-edge__delete.is-selected {
+  transform: scale(1.06);
+  border-color: rgba(var(--color-accent-primary-rgb), 0.5);
+}
+
+.rr-flow-edge__delete-icon {
+  width: 18px;
+  height: 18px;
+  filter: brightness(0) saturate(100%) invert(100%);
+}
+
+.rr-flow-edge__delete:hover .rr-flow-edge__delete-icon {
+  filter: brightness(0) saturate(100%) invert(58%) sepia(23%)
+    saturate(1800%) hue-rotate(329deg) brightness(96%) contrast(92%);
+}
+
+.react-flow__controls button {
+  background: var(--color-bg-secondary);
+  border: var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+/* Flow node */
+/* Node container and menu */
+.rr-flow-node {
+  width: 320px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-subtle);
+  font-family: var(--font-sans);
+  position: relative;
+  overflow: visible;
+}
+
+.rr-flow-node__menu {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+  z-index: 5;
+}
+
+.rr-flow-node.is-hovered .rr-flow-node__menu {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.rr-flow-node__menu-button {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: var(--border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background var(--transition-base), color var(--transition-base);
+}
+
+.rr-flow-node__menu-button svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.rr-flow-node__menu-button:hover {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rr-flow-node__menu-pop {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 12px);
+  min-width: 190px;
+  background: var(--color-bg-secondary);
+  border: var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35);
+  padding: 6px;
+  display: grid;
+  gap: 4px;
+  z-index: 20;
+}
+
+.rr-flow-node__menu-item {
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  transition: background var(--transition-base), color var(--transition-base);
+}
+
+.rr-flow-node__menu-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text-primary);
+}
+
+.rr-flow-node__menu-item.is-danger:hover {
+  color: #f2b9a0;
+}
+
+.rr-flow-node__menu-kbd {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: var(--border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.rr-flow-node__menu-divider {
+  height: 1px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Header: icon + title/meta */
+.rr-flow-node__header {
+  display: grid;
+  grid-template-columns: 48px 1fr; /* icon column + text column */
+  align-items: center; /* center text block vertically */
+  column-gap: var(--space-2); /* space between icon + text */
+  padding: 14px; /* header padding */
+  min-height: var(--rr-node-header-height); /* controlled by JS const */
+  border-bottom: var(--border-subtle);
+}
+
+.rr-flow-node__icon {
+  width: 44px; /* icon frame size */
+  height: 44px;
+  border-radius: var(--radius-sm);
+  border: var(--border-subtle);
+  background: rgba(var(--color-accent-neutral-rgb), 0.18);
+  display: grid;
+  place-items: center;
+}
+
+.rr-flow-node__icon img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(85%);
+}
+
+.rr-flow-node__icon-fallback {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Title/meta block */
+.rr-flow-node__text {
+  display: grid;
+  gap: 2px; /* title/meta spacing */
+  align-items: start; /* top-align text block */
+  text-align: left; /* left align text */
+}
+
+.rr-flow-node__title-button {
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary);
+  font-size: 18px; /* title size */
+  font-weight: var(--font-weight-semibold);
+  text-align: left; /* left align title */
+  padding: 4px 6px; /* internal title padding */
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-base), color var(--transition-base);
+}
+
+.rr-flow-node__title-button.is-hovered {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.rr-flow-node__title-input {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(var(--color-accent-primary-rgb), 0.6);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-primary);
+  padding: 4px 6px;
+  font-size: 18px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.rr-flow-node__title-input:focus {
+  outline: none;
+  box-shadow: var(--shadow-glow);
+}
+
+.rr-flow-node__meta {
+  margin: 0;
+  font-size: 12px; /* meta size */
+  color: var(--color-text-muted);
+  text-align: left; /* meta alignment */
+}
+
+/* Ports: input (left) and output (right) columns */
+.rr-flow-node__ports {
+  display: flex;
+  justify-content: space-between; /* inputs left / outputs right */
+  gap: var(--space-4); /* space between columns */
+  padding: var(--rr-node-port-padding); /* set by JS const */
+}
+
+.rr-flow-node__ports-column {
+  flex: 1;
+  display: grid;
+  gap: 0;
+}
+
+/* Port row: label + anchor + handle */
+.rr-flow-port {
+  min-height: var(--rr-node-port-row-height);
+  display: flex;
+  align-items: center;
+  gap: 5px; /* label <-> anchor spacing */
+  position: relative;
+}
+
+.rr-flow-port--input {
+  margin-left: -65px; /* pull input ports outward */
+}
+
+.rr-flow-port--output {
+  margin-right: -65px; /* pull output ports outward */
+  justify-content: flex-end; /* labels align to the right */
+}
+
+/* Port labels */
+.rr-flow-port__label {
+  font-size: 14px; /* label size */
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast), opacity var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.rr-flow-port__label.is-output {
+  text-align: right;
+}
+
+.rr-flow-port__label.is-highlighted {
+  color: var(--color-text-primary);
+  transform: scale(1.02);
+}
+
+.rr-flow-port.is-hovered .rr-flow-port__label {
+  font-size: 15px;
+}
+
+.rr-flow-port__label.is-dimmed {
+  opacity: 0.5;
+}
+
+/* Visible connection dot */
+.rr-flow-port__dot {
+  width: var(--rr-port-dot-size, 32px); /* visible dot size */
+  height: var(--rr-port-dot-size, 32px);
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.02);
+  display: grid;
+  place-items: center;
+  transition: transform var(--transition-fast), border-color var(--transition-fast),
+    background var(--transition-fast);
+  pointer-events: none;
+}
+
+/* Anchor defines hitbox size and centers dot + handle */
+.rr-flow-port__anchor {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: var(--rr-port-hitbox-size, 48px); /* draggable hitbox */
+  height: var(--rr-port-hitbox-size, 48px);
+  align-self: center; /* center in row */
+}
+
+/* Plus only shows on hover (inactive) */
+.rr-flow-port__plus {
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  pointer-events: none;
+}
+
+/* Hover/active/connected states */
+.rr-flow-port.is-hovered .rr-flow-port__dot {
+  transform: scale(1.12);
+  border-color: rgba(var(--color-accent-primary-rgb), 0.7);
+  background: rgba(var(--color-accent-primary-rgb), 0.25);
+}
+
+.rr-flow-port.is-hovered .rr-flow-port__plus {
+  opacity: 1;
+}
+
+.rr-flow-port.is-active .rr-flow-port__dot {
+  border-color: rgba(var(--color-accent-primary-rgb), 0.9);
+  background: rgba(var(--color-accent-primary-rgb), 0.35);
+}
+
+.rr-flow-port.is-connected .rr-flow-port__dot {
+  border-color: rgba(var(--color-accent-primary-rgb), 0.95);
+  background: var(--color-accent-primary);
+  transform: scale(0.88);
+}
+
+.rr-flow-port.is-connected.is-hovered .rr-flow-port__dot {
+  border-color: rgba(var(--color-accent-primary-rgb), 0.95);
+  background: var(--color-accent-primary);
+  transform: scale(0.94);
+}
+
+.rr-flow-port.is-connected .rr-flow-port__plus {
+  opacity: 0;
+}
+
+/* Handle overlay used for drag-to-connect */
+.rr-flow-port__handle {
+  position: absolute;
+  width: var(--rr-port-dot-size, 32px) !important; /* keep origin at dot center */
+  height: var(--rr-port-dot-size, 32px) !important;
+  left: 50% !important; /* center on dot */
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  background: transparent;
+  border: none;
+  cursor: crosshair;
+  opacity: 0;
+  pointer-events: all;
+  z-index: 2;
+  right: auto !important;
+  bottom: auto !important;
+}
+
+/* Invisible pseudo hitbox to keep drag affordance large without moving origin. */
+.rr-flow-port__handle::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--rr-port-hitbox-size, 55px);
+  height: var(--rr-port-hitbox-size, 55px);
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: transparent;
+  pointer-events: all;
+}
+
+.react-flow__handle.rr-flow-port__handle {
+  pointer-events: all !important;
+  left: 50% !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+/* Debug-only: show handle + hitbox overlays when node has .is-debug. */
+.rr-flow-node.is-debug .rr-flow-port__handle {
+  opacity: 0.35;
+  background: rgba(var(--color-accent-primary-rgb), 0.5);
+  border: 1px dashed rgba(255, 255, 255, 0.6);
+}
+
+.rr-flow-node.is-debug .rr-flow-port__handle::before {
+  background: rgba(var(--color-accent-primary-rgb), 0.2);
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+}
+
+.react-flow__node-rrNode.selected .rr-flow-node {
+  border-color: rgba(var(--color-accent-primary-rgb), 0.7);
+  box-shadow: var(--shadow-subtle),
+    0 0 0 1px rgba(var(--color-accent-primary-rgb), 0.45),
+    0 0 16px rgba(var(--color-accent-primary-rgb), 0.12);
+}
+
+/* Canvas header + toolbar */
+.rr-canvas__overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.rr-canvas-header {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 12px 18px;
+  border-bottom: var(--border-subtle);
+  background: rgba(var(--color-bg-secondary-rgb), 0.92);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+}
+
+.rr-canvas-header__left,
+.rr-canvas-header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.rr-project-icon {
+  position: relative;
+}
+
+.rr-project-icon__button {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  border: var(--border-subtle);
+  background: rgba(255, 255, 255, 0.06);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background var(--transition-base), border-color var(--transition-base);
+  --rr-icon-url: none;
+  --rr-icon-color: #ff8a3c;
+}
+
+.rr-project-icon__button:hover {
+  border-color: rgba(var(--color-accent-primary-rgb), 0.6);
+}
+
+.rr-project-icon__glyph {
+  width: 20px;
+  height: 20px;
+  background: var(--rr-icon-color);
+  mask-image: var(--rr-icon-url);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-image: var(--rr-icon-url);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+}
+
+.rr-project-title__button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: 18px;
+  font-weight: var(--font-weight-semibold);
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: border-color var(--transition-base),
+    background var(--transition-base);
+}
+
+.rr-project-title__button.is-hovered {
+  border-color: rgba(var(--color-accent-primary-rgb), 0.5);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.rr-project-title__input {
+  min-width: 220px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(var(--color-accent-primary-rgb), 0.6);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-primary);
+  padding: 6px 10px;
+  font-size: 18px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.rr-canvas-header__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: var(--border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background var(--transition-base), color var(--transition-base),
+    border-color var(--transition-base);
+}
+
+.rr-canvas-header__button img {
+  width: 16px;
+  height: 16px;
+  filter: brightness(0) saturate(100%) invert(80%);
+}
+
+.rr-canvas-header__caret {
+  width: 12px;
+  height: 12px;
+  margin-left: 4px;
+  opacity: 0.6;
+}
+
+.rr-canvas-header__button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-primary);
+}
+
+.rr-canvas-header__menu {
+  position: relative;
+}
+
+.rr-canvas-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 240px;
+  background: var(--color-bg-secondary);
+  border: var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-3);
+  z-index: 20;
+}
+
+.rr-canvas-popover--shortcuts {
+  width: 300px;
+}
+
+.rr-canvas-popover--save {
+  width: 220px;
+}
+
+.rr-canvas-popover--icon {
+  left: 0;
+  right: auto;
+  width: 320px;
+  max-height: 420px;
+}
+
+.rr-canvas-popover__header {
+  font-size: 13px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.rr-shortcuts {
+  display: grid;
+  gap: var(--space-2);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.rr-shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.rr-shortcut__keys {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rr-kbd {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+}
+
+.rr-save-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.rr-canvas-popover__action {
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-secondary);
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.rr-canvas-popover__action:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-primary);
+}
+
+.rr-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+  gap: 8px;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.15);
+  max-height: 220px;
+  overflow: auto;
+}
+
+.rr-icon-grid__item {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.04);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.rr-icon-grid__item img {
+  width: 18px;
+  height: 18px;
+  filter: brightness(0) saturate(100%) invert(80%);
+}
+
+.rr-icon-grid__item:hover {
+  border-color: rgba(var(--color-accent-primary-rgb), 0.6);
+}
+
+.rr-icon-grid__item.is-active {
+  border-color: rgba(var(--color-accent-primary-rgb), 0.8);
+  box-shadow: var(--shadow-glow);
+}
+
+.rr-icon-color {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.rr-icon-color__swatches {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.rr-icon-color__swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+}
+
+.rr-icon-color__swatch.is-active {
+  outline: 2px solid rgba(var(--color-accent-primary-rgb), 0.6);
+}
+
+.rr-icon-color input[type="color"] {
+  width: 32px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.rr-canvas-toolbar {
+  pointer-events: auto;
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(var(--color-bg-secondary-rgb), 0.92);
+  border: var(--border-subtle);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.react-flow__attribution {
+  display: none !important;
+}
+
+.rr-canvas-toolbar__divider {
+  width: 1px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 0 4px;
+}
+
+.rr-canvas-tool {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  position: relative;
+  transition: background var(--transition-base);
+}
+
+.rr-canvas-tool img {
+  width: 18px;
+  height: 18px;
+  filter: brightness(0) saturate(100%) invert(80%);
+}
+
+.rr-canvas-tool:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rr-canvas-tool.is-primary {
+  background: var(--gradient-accent);
+}
+
+.rr-canvas-tool.is-primary img {
+  filter: brightness(0) saturate(100%) invert(100%);
+}
+
+.rr-canvas-tool::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: rgba(30, 30, 24, 0.95);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+  border: var(--border-subtle);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+}
+
+.rr-canvas-tool:hover::after {
+  opacity: 1;
+}

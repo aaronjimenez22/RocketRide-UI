@@ -1,32 +1,5 @@
 import { useMemo, useState } from "react";
-import aparaviIcon from "../assets/project-icons/aparavi.png";
-import attlasianIcon from "../assets/project-icons/attlasian.png";
-import classificationIcon from "../assets/project-icons/classification.png";
-import dragNDropIcon from "../assets/project-icons/dragndrop.png";
-import driveIcon from "../assets/project-icons/drive.png";
-import gmailIcon from "../assets/project-icons/gmail.png";
-import outlookIcon from "../assets/project-icons/outlook.svg";
-import webhookIcon from "../assets/project-icons/webhook.png";
-import openAiIcon from "../assets/project-icons/openAI.png";
-import s3Icon from "../assets/project-icons/S3.png";
-import qdrantIcon from "../assets/project-icons/qdrant.png";
-
-const iconUrl = (name) =>
-  `https://unpkg.com/pixelarticons@1.8.0/svg/${name}.svg`;
-
-const nodeAssets = {
-  clipboard: { src: classificationIcon, label: "Classification" },
-  folder: { src: driveIcon, label: "Drive" },
-  link: { src: webhookIcon, label: "Webhook" },
-  mail: { src: gmailIcon, label: "Gmail" },
-  briefcase: { src: attlasianIcon, label: "Atlassian" },
-  database: { src: aparaviIcon, label: "Aparavi" },
-  share: { src: dragNDropIcon, label: "Drag & Drop" },
-  openai: { src: openAiIcon, label: "OpenAI" },
-  s3: { src: s3Icon, label: "S3" },
-  qdrant: { src: qdrantIcon, label: "Qdrant" },
-  default: { src: outlookIcon, label: "Outlook" },
-};
+import { iconUrl, getIconForKey } from "../utils/iconLibrary";
 
 const generateLastRuns = () => {
   const statuses = ["success", "failure", "warning"];
@@ -223,10 +196,10 @@ const LastRunsVisualization = ({ runs }) => {
 };
 
 const NodeChip = ({ type, index, total }) => {
-  const iconData = nodeAssets[type] ?? nodeAssets.default;
+  const iconData = getIconForKey(type);
   return (
     <span className="rr-node-chip" style={{ zIndex: total - index }}>
-      <img src={iconData.src} alt={iconData.label} />
+      <img src={iconData.url} alt={type} />
     </span>
   );
 };
