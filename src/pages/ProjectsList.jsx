@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { iconUrl, getIconForKey } from "../utils/iconLibrary";
 
 const generateLastRuns = () => {
@@ -20,7 +20,7 @@ const SAMPLE_DATA = [
   {
     id: "1",
     name: "Sample RAG Pipeline",
-    nodes: ["clipboard", "folder", "link", "mail", "share", "database"],
+    nodes: ["clipboard", "folder", "link", "mail"],
     status: "Running",
     lastRuns: generateLastRuns(),
     cost: 45.32,
@@ -29,13 +29,13 @@ const SAMPLE_DATA = [
     description: "Advanced RAG pipeline for document processing",
     dataProcessed: "2.4 GB",
     filesUploaded: 142,
+    icon: getIconForKey("Sample RAG Pipeline").url,
   },
   {
     id: "2",
     name: "Sample RAG Pipeline",
-    nodes: ["clipboard", "folder", "link", "mail"],
+    nodes: ["clipboard", "folder", "link"],
     status: "Running",
-    extraNodes: 3,
     lastRuns: generateLastRuns(),
     cost: 38.15,
     dateCreated: new Date("2024-02-01"),
@@ -43,6 +43,7 @@ const SAMPLE_DATA = [
     description: "Standard RAG implementation",
     dataProcessed: "1.8 GB",
     filesUploaded: 98,
+    icon: getIconForKey("Sample RAG Pipeline 2").url,
   },
   {
     id: "3",
@@ -57,6 +58,7 @@ const SAMPLE_DATA = [
     description: "Multi-modal RAG with email integration",
     dataProcessed: "5.2 GB",
     filesUploaded: 287,
+    icon: getIconForKey("Sample Advanced RAG").url,
   },
   {
     id: "4",
@@ -70,6 +72,7 @@ const SAMPLE_DATA = [
     description: "Basic chat interface",
     dataProcessed: "450 MB",
     filesUploaded: 23,
+    icon: getIconForKey("Sample Simple Chat").url,
   },
   {
     id: "5",
@@ -84,6 +87,7 @@ const SAMPLE_DATA = [
     description: "Data classification and anonymization",
     dataProcessed: "1.1 GB",
     filesUploaded: 67,
+    icon: getIconForKey("Sample Classify & Anonymize").url,
   },
   {
     id: "6",
@@ -98,6 +102,7 @@ const SAMPLE_DATA = [
     description: "Webhook-triggered content summarization",
     dataProcessed: "320 MB",
     filesUploaded: 15,
+    icon: getIconForKey("Content Summary - Webhook").url,
   },
 ];
 
@@ -212,6 +217,11 @@ export default function ProjectsList({ onOpenProject }) {
   const [draggedColumnId, setDraggedColumnId] = useState(null);
   const [dragOverColumnId, setDragOverColumnId] = useState(null);
   const [columnsOpen, setColumnsOpen] = useState(false);
+  const [menuOpenId, setMenuOpenId] = useState(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [templateQuery, setTemplateQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("Recommended");
+  const menuRefs = useRef({});
 
   const handleSort = (field) => {
     if (sortField !== field) {
@@ -231,6 +241,106 @@ export default function ProjectsList({ onOpenProject }) {
     if (locked && columnId !== "nodes") return;
     setDraggedColumnId(columnId);
   };
+
+  useEffect(() => {
+    const handleClick = (event) => {
+      const refs = Object.values(menuRefs.current);
+      const clickedMenu = refs.some((ref) => ref?.contains(event.target));
+      if (!clickedMenu) {
+        setMenuOpenId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    if (!createOpen) {
+      return;
+    }
+    const handleKey = (event) => {
+      if (event.key === "Escape") {
+        setCreateOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [createOpen]);
+
+  const templateCategories = [
+    "Recommended",
+    "Chatbots",
+    "Content & Media",
+    "Data Analysis",
+    "Knowledge Retrieval",
+  ];
+
+  const templateLibrary = [
+    {
+      id: "legal-chatbot",
+      title: "Legal Chatbot",
+      category: "Recommended",
+      description:
+        "Capture, summarize, and answer legal questions with a controlled RAG stack.",
+      nodes: ["text", "folder", "link", "openai", "share", "database"],
+    },
+    {
+      id: "pii-identifier",
+      title: "PII Identifier",
+      category: "Recommended",
+      description:
+        "Scan inbound docs and highlight sensitive content with alerts and redaction.",
+      nodes: ["clipboard", "mail", "share", "database", "openai", "folder"],
+    },
+    {
+      id: "support-chat",
+      title: "Support Triage Bot",
+      category: "Chatbots",
+      description:
+        "Route support tickets, craft summaries, and generate response drafts.",
+      nodes: ["mail", "clipboard", "openai", "link", "database"],
+    },
+    {
+      id: "marketing-digest",
+      title: "Marketing Digest",
+      category: "Content & Media",
+      description:
+        "Collect brand signals and compile a weekly newsletter summary.",
+      nodes: ["link", "folder", "openai", "mail", "share"],
+    },
+    {
+      id: "sales-insights",
+      title: "Sales Insights",
+      category: "Data Analysis",
+      description:
+        "Aggregate CRM exports, annotate trends, and deliver action items.",
+      nodes: ["database", "clipboard", "openai", "share"],
+    },
+    {
+      id: "knowledge-base",
+      title: "Knowledge Base Builder",
+      category: "Knowledge Retrieval",
+      description:
+        "Ingest docs, build embeddings, and ship a searchable knowledge base.",
+      nodes: ["folder", "database", "openai", "share", "clipboard"],
+    },
+  ];
+
+  const filteredTemplates = useMemo(() => {
+    const query = templateQuery.trim().toLowerCase();
+    const pool = templateLibrary.filter((template) =>
+      activeCategory === "Recommended"
+        ? template.category === "Recommended"
+        : template.category === activeCategory
+    );
+    if (!query) {
+      return pool;
+    }
+    return pool.filter((template) => {
+      const text = `${template.title} ${template.description}`.toLowerCase();
+      return text.includes(query);
+    });
+  }, [templateQuery, activeCategory]);
 
   const handleDragOver = (columnId, locked) => {
     if (locked && columnId !== "nodes") return;
@@ -379,7 +489,10 @@ export default function ProjectsList({ onOpenProject }) {
             </>
           )}
           </div>
-          <button className="rr-button rr-button--primary">
+          <button
+            className="rr-button rr-button--primary"
+            onClick={() => setCreateOpen(true)}
+          >
             <img src={iconUrl("add-box")} alt="" />
             New Project
           </button>
@@ -480,7 +593,15 @@ export default function ProjectsList({ onOpenProject }) {
                 onClick={() => onOpenProject?.(project.id)}
               >
                 <td className="rr-projects__sticky rr-projects__name">
-                  {project.name}
+                  <span className="rr-projects__name-wrap">
+                    <span
+                      className="rr-projects__icon"
+                      style={{
+                        "--rr-icon-url": `url(${project.icon ?? iconUrl("file")})`,
+                      }}
+                    />
+                    {project.name}
+                  </span>
                 </td>
                 {visibleColumns.map((column) => {
                   if (column.id === "nodes") {
@@ -589,6 +710,9 @@ export default function ProjectsList({ onOpenProject }) {
                     return (
                       <td key={column.id}>
                         <span className={`rr-status ${statusBadge(project.status)}`}>
+                          {project.status === "Running" && (
+                            <span className="rr-status__spinner" />
+                          )}
                           {project.status}
                         </span>
                       </td>
@@ -597,9 +721,49 @@ export default function ProjectsList({ onOpenProject }) {
                   return <td key={column.id}></td>;
                 })}
                 <td className="rr-projects__menu-cell">
-                  <button className="rr-icon-button rr-projects__menu-button">
-                    <img src={iconUrl("more-vertical")} alt="" />
-                  </button>
+                  <div
+                    className="rr-projects__menu"
+                    ref={(ref) => {
+                      menuRefs.current[project.id] = ref;
+                    }}
+                  >
+                    <button
+                      className="rr-icon-button rr-projects__menu-button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setMenuOpenId((prev) =>
+                          prev === project.id ? null : project.id
+                        );
+                      }}
+                    >
+                      <img src={iconUrl("more-vertical")} alt="" />
+                    </button>
+                    {menuOpenId === project.id && (
+                      <div className="rr-projects__menu-popover">
+                        <button
+                          type="button"
+                          className="rr-projects__menu-item"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          Open
+                        </button>
+                        <button
+                          type="button"
+                          className="rr-projects__menu-item"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          Duplicate
+                        </button>
+                        <button
+                          type="button"
+                          className="rr-projects__menu-item is-danger"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -613,6 +777,103 @@ export default function ProjectsList({ onOpenProject }) {
           </tbody>
         </table>
       </section>
+      {createOpen && (
+        <div className="rr-modal-overlay" onClick={() => setCreateOpen(false)}>
+          <div
+            className="rr-project-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="rr-project-modal__left">
+              <h2>Create Project</h2>
+              <div className="rr-project-modal__menu">
+                {templateCategories.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    className={`rr-project-modal__menu-item ${
+                      activeCategory === category ? "is-active" : ""
+                    }`}
+                    onClick={() => setActiveCategory(category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="rr-project-modal__right">
+              <button
+                type="button"
+                className="rr-project-modal__close"
+                onClick={() => setCreateOpen(false)}
+              >
+                <img src={iconUrl("close")} alt="" />
+              </button>
+              <div className="rr-project-modal__actions">
+                <div className="rr-project-modal__search">
+                  <img src={iconUrl("search")} alt="" />
+                  <input
+                    type="text"
+                    value={templateQuery}
+                    onChange={(event) => setTemplateQuery(event.target.value)}
+                    placeholder="Search templates"
+                  />
+                </div>
+                <button className="rr-button rr-button--primary">
+                  <img src={iconUrl("note-plus")} alt="" />
+                  Create Blank
+                </button>
+              </div>
+              <div className="rr-template-grid">
+                {filteredTemplates.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    className="rr-template-card"
+                  >
+                    <div className="rr-template-card__header">
+                      <span
+                        className="rr-projects__icon"
+                        style={{
+                          "--rr-icon-url": `url(${getIconForKey(template.title).url})`,
+                        }}
+                      />
+                      <div>
+                        <p className="rr-card-title">{template.title}</p>
+                        <p className="rr-card-meta">By RocketRide</p>
+                      </div>
+                    </div>
+                    <p className="rr-body">{template.description}</p>
+                    <div className="rr-node-stack">
+                      {template.nodes.slice(0, 5).map((node, index) => (
+                        <NodeChip
+                          key={`${template.id}-${node}-${index}`}
+                          type={node}
+                          index={index}
+                          total={Math.min(template.nodes.length, 5)}
+                        />
+                      ))}
+                      {template.nodes.length > 5 && (
+                        <span className="rr-node-count">
+                          +{template.nodes.length - 5}
+                        </span>
+                      )}
+                    </div>
+                    <span className="rr-template-card__cta">Use template</span>
+                  </button>
+                ))}
+                {filteredTemplates.length === 0 && (
+                  <div className="rr-empty">
+                    <p className="rr-empty-title">No templates found</p>
+                    <p className="rr-body">
+                      Try another keyword or category.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
