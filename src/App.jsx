@@ -5,12 +5,14 @@ import DesignSystem from "./pages/DesignSystem.jsx";
 import ProjectsCanvas from "./pages/ProjectsCanvas.jsx";
 import ProjectsList from "./pages/ProjectsList.jsx";
 import PlaceholderPage from "./pages/PlaceholderPage.jsx";
+import { useProjects } from "./state/projectsStore.jsx";
 
 export default function App() {
   const [activeView, setActiveView] = useState("projects");
   const [theme, setTheme] = useState(
     () => localStorage.getItem("rr-theme") ?? "tungsten"
   );
+  const { activeProjectId, setActiveProjectId } = useProjects();
 
   const flowOptions = useMemo(
     () => ({
@@ -27,10 +29,24 @@ export default function App() {
         return <Home />;
       case "projects":
         return (
-          <ProjectsList onOpenProject={() => setActiveView("project-canvas")} />
+          <ProjectsList
+            onOpenProject={(projectId) => {
+              setActiveProjectId(projectId);
+              setActiveView("project-canvas");
+            }}
+            onCreateProject={(projectId) => {
+              setActiveProjectId(projectId);
+              setActiveView("project-canvas");
+            }}
+          />
         );
       case "project-canvas":
-        return <ProjectsCanvas flowOptions={flowOptions} />;
+        return (
+          <ProjectsCanvas
+            flowOptions={flowOptions}
+            projectId={activeProjectId}
+          />
+        );
       case "design-system":
         return <DesignSystem />;
       case "api-keys":

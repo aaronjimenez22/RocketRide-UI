@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactFlow, {
   Background,
-  Controls,
   addEdge,
   useEdgesState,
   useNodesState,
@@ -9,6 +8,7 @@ import ReactFlow, {
 import FlowNode from "../components/FlowNode";
 import FlowEdge from "../components/FlowEdge";
 import { iconNames, iconUrl, getIconForKey } from "../utils/iconLibrary";
+import { useProjects } from "../state/projectsStore.jsx";
 
 const initialNodes = [
   {
@@ -307,13 +307,22 @@ const getNodeDescription = (label) =>
   NODE_DESCRIPTIONS.get(label) ??
   "Configure this node to match your pipeline requirements.";
 
-export default function ProjectsCanvas({ flowOptions }) {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+export default function ProjectsCanvas({ flowOptions, projectId }) {
+  const { projects, updateProject } = useProjects();
+  const activeProject =
+    projects.find((project) => project.id === projectId) ?? projects[0];
+  const [nodes, setNodes, onNodesChange] = useNodesState(
+    activeProject?.nodes ?? initialNodes
+  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState(
+    activeProject?.edges ?? initialEdges
+  );
   const [hoveredEdgeId, setHoveredEdgeId] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
   const [nodesLocked, setNodesLocked] = useState(false);
-  const [projectTitle, setProjectTitle] = useState("Content summary");
+  const [projectTitle, setProjectTitle] = useState(
+    activeProject?.name ?? "Untitled Project"
+  );
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleHovered, setTitleHovered] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -321,8 +330,14 @@ export default function ProjectsCanvas({ flowOptions }) {
   const [autosaveEnabled, setAutosaveEnabled] = useState(true);
   const [saveState, setSaveState] = useState("saved");
   const [iconMenuOpen, setIconMenuOpen] = useState(false);
-  const [projectIcon, setProjectIcon] = useState("file");
-  const [projectIconColor, setProjectIconColor] = useState("#ff8a3c");
+  const [projectIcon, setProjectIcon] = useState(
+    activeProject?.icon
+      ? activeProject.icon.replace(/.*\/(.+)\.svg/, "$1")
+      : "file"
+  );
+  const [projectIconColor, setProjectIconColor] = useState(
+    activeProject?.iconColor ?? "#ff8a3c"
+  );
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [inventoryQuery, setInventoryQuery] = useState("");
@@ -503,6 +518,24 @@ export default function ProjectsCanvas({ flowOptions }) {
       : "cloud-done"
     : "save";
 
+  useEffect(() => {
+    if (!activeProject) return;
+    // Only hydrate canvas state when switching projects to avoid drag jitter.
+    setNodes(activeProject.nodes ?? []);
+    setEdges(activeProject.edges ?? []);
+    setProjectTitle(activeProject.name ?? "Untitled Project");
+    const iconName = activeProject.icon
+      ? activeProject.icon.replace(/.*\/(.+)\.svg/, "$1")
+      : "file";
+    setProjectIcon(iconName);
+    setProjectIconColor(activeProject.iconColor ?? "#ff8a3c");
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!activeProject) return;
+    updateProject(activeProject.id, { nodes, edges });
+  }, [nodes, edges, activeProject, updateProject]);
+
   const filteredGroups = useMemo(() => {
     const query = inventoryQuery.trim().toLowerCase();
     if (!query) {
@@ -600,6 +633,11 @@ export default function ProjectsCanvas({ flowOptions }) {
                         }`}
                         onClick={() => {
                           setProjectIcon(icon);
+                          if (activeProject) {
+                            updateProject(activeProject.id, {
+                              icon: iconUrl(icon),
+                            });
+                          }
                           triggerSave();
                         }}
                       >
@@ -626,6 +664,11 @@ export default function ProjectsCanvas({ flowOptions }) {
                           style={{ background: color }}
                           onClick={() => {
                             setProjectIconColor(color);
+                            if (activeProject) {
+                              updateProject(activeProject.id, {
+                                iconColor: color,
+                              });
+                            }
                             triggerSave();
                           }}
                           aria-label={`Set icon color to ${color}`}
@@ -637,6 +680,11 @@ export default function ProjectsCanvas({ flowOptions }) {
                       value={projectIconColor}
                       onChange={(event) => {
                         setProjectIconColor(event.target.value);
+                        if (activeProject) {
+                          updateProject(activeProject.id, {
+                            iconColor: event.target.value,
+                          });
+                        }
                         triggerSave();
                       }}
                       aria-label="Custom icon color"
@@ -657,11 +705,21 @@ export default function ProjectsCanvas({ flowOptions }) {
                     if (!projectTitle.trim()) {
                       setProjectTitle("Untitled project");
                     }
+                    if (activeProject) {
+                      updateProject(activeProject.id, {
+                        name: projectTitle.trim() || "Untitled project",
+                      });
+                    }
                     triggerSave();
                   }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       setIsEditingTitle(false);
+                      if (activeProject) {
+                        updateProject(activeProject.id, {
+                          name: projectTitle.trim() || "Untitled project",
+                        });
+                      }
                       triggerSave();
                     }
                     if (event.key === "Escape") {

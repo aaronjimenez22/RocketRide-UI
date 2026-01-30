@@ -1,110 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { iconUrl, getIconForKey } from "../utils/iconLibrary";
+import { useProjects } from "../state/projectsStore.jsx";
 
-const generateLastRuns = () => {
-  const statuses = ["success", "failure", "warning"];
-  return Array.from({ length: 10 }, (_, i) => {
-    const rand = Math.random();
-    let status = "success";
-    if (rand > 0.85) status = "failure";
-    else if (rand > 0.7) status = "warning";
-    return {
-      status,
-      timestamp: new Date(Date.now() - (i + 1) * 3600000),
-      duration: Math.floor(Math.random() * 300) + 10,
-    };
-  });
-};
-
-const SAMPLE_DATA = [
-  {
-    id: "1",
-    name: "Sample RAG Pipeline",
-    nodes: ["clipboard", "folder", "link", "mail"],
-    status: "Running",
-    lastRuns: generateLastRuns(),
-    cost: 45.32,
-    dateCreated: new Date("2024-01-15"),
-    lastModified: new Date("2024-03-20"),
-    description: "Advanced RAG pipeline for document processing",
-    dataProcessed: "2.4 GB",
-    filesUploaded: 142,
-    icon: getIconForKey("Sample RAG Pipeline").url,
-  },
-  {
-    id: "2",
-    name: "Sample RAG Pipeline",
-    nodes: ["clipboard", "folder", "link"],
-    status: "Running",
-    lastRuns: generateLastRuns(),
-    cost: 38.15,
-    dateCreated: new Date("2024-02-01"),
-    lastModified: new Date("2024-03-19"),
-    description: "Standard RAG implementation",
-    dataProcessed: "1.8 GB",
-    filesUploaded: 98,
-    icon: getIconForKey("Sample RAG Pipeline 2").url,
-  },
-  {
-    id: "3",
-    name: "Sample Advanced RAG",
-    nodes: ["folder", "clipboard", "mail", "link", "briefcase"],
-    status: "Running",
-    extraNodes: 2,
-    lastRuns: generateLastRuns(),
-    cost: 92.47,
-    dateCreated: new Date("2023-12-10"),
-    lastModified: new Date("2024-03-21"),
-    description: "Multi-modal RAG with email integration",
-    dataProcessed: "5.2 GB",
-    filesUploaded: 287,
-    icon: getIconForKey("Sample Advanced RAG").url,
-  },
-  {
-    id: "4",
-    name: "Sample Simple Chat",
-    nodes: ["clipboard", "folder", "link", "database", "share", "briefcase"],
-    status: "Inactive",
-    lastRuns: generateLastRuns(),
-    cost: 12.89,
-    dateCreated: new Date("2024-01-20"),
-    lastModified: new Date("2024-02-15"),
-    description: "Basic chat interface",
-    dataProcessed: "450 MB",
-    filesUploaded: 23,
-    icon: getIconForKey("Sample Simple Chat").url,
-  },
-  {
-    id: "5",
-    name: "Sample Classify & Anonymize",
-    nodes: ["clipboard", "folder", "link", "mail", "share", "database"],
-    status: "Inactive",
-    extraNodes: 1,
-    lastRuns: generateLastRuns(),
-    cost: 8.5,
-    dateCreated: new Date("2024-02-10"),
-    lastModified: new Date("2024-02-28"),
-    description: "Data classification and anonymization",
-    dataProcessed: "1.1 GB",
-    filesUploaded: 67,
-    icon: getIconForKey("Sample Classify & Anonymize").url,
-  },
-  {
-    id: "6",
-    name: "Content Summary - Webhook",
-    nodes: ["link", "clipboard", "folder", "mail", "share", "database"],
-    status: "Inactive",
-    extraNodes: 2,
-    lastRuns: generateLastRuns(),
-    cost: 5.25,
-    dateCreated: new Date("2024-03-01"),
-    lastModified: new Date("2024-03-10"),
-    description: "Webhook-triggered content summarization",
-    dataProcessed: "320 MB",
-    filesUploaded: 15,
-    icon: getIconForKey("Content Summary - Webhook").url,
-  },
-];
+const buildTemplateNodes = (labels) =>
+  labels.map((label, index) => ({
+    id: `template-${label}-${index}`,
+    position: { x: 120 + (index % 3) * 220, y: 120 + Math.floor(index / 3) * 160 },
+    type: "rrNode",
+    data: {
+      title: label,
+      iconSrc: getIconForKey(label).url,
+      meta: "STEP",
+      inputs: index === 0 ? [] : [{ id: "in", label: "In", type: "input" }],
+      outputs: [{ id: "out", label: "Out", type: "output" }],
+    },
+  }));
 
 const DEFAULT_COLUMNS = [
   { id: "name", label: "Project Name", visible: true, locked: true },
@@ -209,7 +119,13 @@ const NodeChip = ({ type, index, total }) => {
   );
 };
 
-export default function ProjectsList({ onOpenProject }) {
+export default function ProjectsList({ onOpenProject, onCreateProject }) {
+  const {
+    projects,
+    createProject,
+    deleteProject,
+    duplicateProject,
+  } = useProjects();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
@@ -328,11 +244,13 @@ export default function ProjectsList({ onOpenProject }) {
 
   const filteredTemplates = useMemo(() => {
     const query = templateQuery.trim().toLowerCase();
-    const pool = templateLibrary.filter((template) =>
-      activeCategory === "Recommended"
-        ? template.category === "Recommended"
-        : template.category === activeCategory
-    );
+    const pool = query
+      ? templateLibrary
+      : templateLibrary.filter((template) =>
+          activeCategory === "Recommended"
+            ? template.category === "Recommended"
+            : template.category === activeCategory
+        );
     if (!query) {
       return pool;
     }
@@ -341,6 +259,14 @@ export default function ProjectsList({ onOpenProject }) {
       return text.includes(query);
     });
   }, [templateQuery, activeCategory]);
+
+  const handleCreateProject = (data) => {
+    const projectId = createProject(data);
+    setCreateOpen(false);
+    if (onCreateProject) {
+      onCreateProject(projectId);
+    }
+  };
 
   const handleDragOver = (columnId, locked) => {
     if (locked && columnId !== "nodes") return;
@@ -373,7 +299,7 @@ export default function ProjectsList({ onOpenProject }) {
   };
 
   const sortedAndFiltered = useMemo(() => {
-    let filtered = SAMPLE_DATA.filter((project) =>
+    let filtered = projects.filter((project) =>
       project.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
     if (sortField) {
@@ -400,7 +326,7 @@ export default function ProjectsList({ onOpenProject }) {
       });
     }
     return filtered;
-  }, [searchQuery, sortField, sortDirection]);
+  }, [projects, searchQuery, sortField, sortDirection]);
 
   const visibleColumns = columns.filter(
     (column) => column.visible && column.id !== "name"
@@ -598,6 +524,7 @@ export default function ProjectsList({ onOpenProject }) {
                       className="rr-projects__icon"
                       style={{
                         "--rr-icon-url": `url(${project.icon ?? iconUrl("file")})`,
+                        "--rr-icon-color": project.iconColor ?? "var(--color-accent-primary)",
                       }}
                     />
                     {project.name}
@@ -606,22 +533,17 @@ export default function ProjectsList({ onOpenProject }) {
                 {visibleColumns.map((column) => {
                   if (column.id === "nodes") {
                     const maxVisible = 5;
-                    const visibleNodes = project.nodes.slice(0, maxVisible);
-                    const totalNodes =
-                      project.nodes.length + (project.extraNodes ?? 0);
+                    const nodeLabels = project.nodes.map(
+                      (node) => node.data?.title ?? node.id
+                    );
+                    const visibleNodes = nodeLabels.slice(0, maxVisible);
+                    const totalNodes = nodeLabels.length;
                     const hiddenCount = Math.max(
                       0,
                       totalNodes - visibleNodes.length
                     );
-                    const hiddenNodes = project.nodes.slice(maxVisible);
-                    const extraPlaceholders = Math.max(
-                      0,
-                      hiddenCount - hiddenNodes.length
-                    );
-                    const tooltipNodes = [
-                      ...hiddenNodes,
-                      ...Array(extraPlaceholders).fill("default"),
-                    ];
+                    const hiddenNodes = nodeLabels.slice(maxVisible);
+                    const tooltipNodes = hiddenNodes;
                     return (
                       <td key={column.id}>
                         <div className="rr-node-stack">
@@ -743,21 +665,33 @@ export default function ProjectsList({ onOpenProject }) {
                         <button
                           type="button"
                           className="rr-projects__menu-item"
-                          onClick={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setMenuOpenId(null);
+                            onOpenProject?.(project.id);
+                          }}
                         >
                           Open
                         </button>
                         <button
                           type="button"
                           className="rr-projects__menu-item"
-                          onClick={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            duplicateProject(project.id);
+                            setMenuOpenId(null);
+                          }}
                         >
                           Duplicate
                         </button>
                         <button
                           type="button"
                           className="rr-projects__menu-item is-danger"
-                          onClick={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            deleteProject(project.id);
+                            setMenuOpenId(null);
+                          }}
                         >
                           Delete
                         </button>
@@ -818,7 +752,17 @@ export default function ProjectsList({ onOpenProject }) {
                     placeholder="Search templates"
                   />
                 </div>
-                <button className="rr-button rr-button--primary">
+                <button
+                  className="rr-button rr-button--primary"
+                  onClick={() =>
+                    handleCreateProject({
+                      name: "Untitled Project",
+                      nodes: [],
+                      edges: [],
+                      status: "Inactive",
+                    })
+                  }
+                >
                   <img src={iconUrl("note-plus")} alt="" />
                   Create Blank
                 </button>
@@ -829,6 +773,16 @@ export default function ProjectsList({ onOpenProject }) {
                     key={template.id}
                     type="button"
                     className="rr-template-card"
+                    onClick={() =>
+                      handleCreateProject({
+                        name: template.title,
+                        description: template.description,
+                        nodes: buildTemplateNodes(template.nodes),
+                        edges: [],
+                        status: "Inactive",
+                        icon: getIconForKey(template.title).url,
+                      })
+                    }
                   >
                     <div className="rr-template-card__header">
                       <span
