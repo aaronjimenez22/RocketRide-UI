@@ -307,6 +307,95 @@ const getNodeDescription = (label) =>
   NODE_DESCRIPTIONS.get(label) ??
   "Configure this node to match your pipeline requirements.";
 
+const NODE_IO = new Map([
+  ["Aparavi Data Catalog", { inputs: [], outputs: ["Audio", "Data", "Image", "Text", "Video"] }],
+  ["Atlassian Confluence", { inputs: [], outputs: ["Data"] }],
+  ["AWS S3", { inputs: [], outputs: ["Data"] }],
+  ["Azure", { inputs: [], outputs: ["Data"] }],
+  ["Chat", { inputs: [], outputs: ["Data"] }],
+  ["Dropper", { inputs: [], outputs: ["Data"] }],
+  ["Google Gmail - Enterprise", { inputs: [], outputs: ["Data"] }],
+  ["Google Gmail - Personal", { inputs: [], outputs: ["Data"] }],
+  ["Google Drive - Enterprise", { inputs: [], outputs: ["Data"] }],
+  ["Google Drive - Personal", { inputs: [], outputs: ["Data"] }],
+  ["Microsoft OneDrive - Enterprise", { inputs: [], outputs: ["Data"] }],
+  ["Microsoft OneDrive - Personal", { inputs: [], outputs: ["Data"] }],
+  ["Microsoft SharePoint - Enterprise", { inputs: [], outputs: ["Data"] }],
+  ["Object Storage", { inputs: [], outputs: ["Data"] }],
+  ["Microsoft Outlook - Enterprise", { inputs: [], outputs: ["Data"] }],
+  ["Microsoft Outlook - Personal", { inputs: [], outputs: ["Data"] }],
+  ["Aparavi Sample Data", { inputs: [], outputs: ["Data"] }],
+  ["File System Simulator", { inputs: [], outputs: ["Data"] }],
+  ["Slack - Enterprise", { inputs: [], outputs: ["Data"] }],
+  ["Slack - Personal", { inputs: [], outputs: ["Data"] }],
+  ["Web Crawler - FireCrawl", { inputs: [], outputs: ["Data"] }],
+  ["Web Hook", { inputs: [], outputs: ["Data"] }],
+  ["Embedding - Image", { inputs: ["Image"], outputs: ["Embedding"] }],
+  ["Embedding - OpenAI", { inputs: ["Text"], outputs: ["Embedding"] }],
+  ["Embedding - Transformer", { inputs: ["Text"], outputs: ["Embedding"] }],
+  ["LLM - Anthropic", { inputs: ["Text"], outputs: ["Text"] }],
+  ["LLM - Amazon Bedrock", { inputs: ["Text"], outputs: ["Text"] }],
+  ["LLM - Deepseek", { inputs: ["Text"], outputs: ["Text"] }],
+  ["LLM - Gemini", { inputs: ["Text"], outputs: ["Text"] }],
+  ["LLM - IBM Granite", { inputs: ["Text"], outputs: ["Text"] }],
+  ["LLM - Mistral AI", { inputs: ["Text"], outputs: ["Text"] }],
+  ["LLM - Ollama", { inputs: ["Text"], outputs: ["Text"] }],
+  ["LLM - OpenAI", { inputs: ["Text"], outputs: ["Text"] }],
+  ["LLM - Perplexity", { inputs: ["Text"], outputs: ["Text"] }],
+  ["LLM - VertexAI - Enterprise", { inputs: ["Text"], outputs: ["Text"] }],
+  ["LLM - VertexAI - Personal", { inputs: ["Text"], outputs: ["Text"] }],
+  ["LLM - xAI", { inputs: ["Text"], outputs: ["Text"] }],
+  ["Database - MySQL", { inputs: ["Data"], outputs: ["Data"] }],
+  ["Image - Cleanup", { inputs: ["Image"], outputs: ["Image"] }],
+  ["Image - Mistral Vision", { inputs: ["Image"], outputs: ["Text"] }],
+  ["Image - OCR", { inputs: ["Image"], outputs: ["Text"] }],
+  ["Image - Thumbnail", { inputs: ["Image"], outputs: ["Image"] }],
+  ["Preprocessor - Chonkie", { inputs: ["Data"], outputs: ["Data"] }],
+  ["Preprocessor - Code", { inputs: ["Text"], outputs: ["Text"] }],
+  ["Preprocessor - General Text", { inputs: ["Text"], outputs: ["Text"] }],
+  ["Preprocessor - LLM", { inputs: ["Text"], outputs: ["Text"] }],
+  ["Vector Store - Astra DB", { inputs: ["Embedding"], outputs: ["Data"] }],
+  ["Vector Store - Chroma", { inputs: ["Embedding"], outputs: ["Data"] }],
+  ["Vector Store - Milvus", { inputs: ["Embedding"], outputs: ["Data"] }],
+  ["Vector Store - MongoDB Atlas", { inputs: ["Embedding"], outputs: ["Data"] }],
+  ["Vector Store - Pinecone", { inputs: ["Embedding"], outputs: ["Data"] }],
+  ["Vector Store - PostgreSQL", { inputs: ["Embedding"], outputs: ["Data"] }],
+  ["Vector Store - Qdrant", { inputs: ["Embedding"], outputs: ["Data"] }],
+  ["Vector Store - Weaviate", { inputs: ["Embedding"], outputs: ["Data"] }],
+  ["Text - Anonymize", { inputs: ["Text"], outputs: ["Text"] }],
+  ["Text - Classification", { inputs: ["Text"], outputs: ["Data"] }],
+  ["Text - Dictionary", { inputs: ["Text"], outputs: ["Text"] }],
+  ["Text - Data Extractor", { inputs: ["Text"], outputs: ["Data"] }],
+  ["Text - Prompt", { inputs: ["Text"], outputs: ["Text"] }],
+  ["Text - Question", { inputs: ["Text"], outputs: ["Text"] }],
+  ["Text - Summarization: LLM", { inputs: ["Text"], outputs: ["Text"] }],
+  ["Audio - Transcribe", { inputs: ["Audio"], outputs: ["Text"] }],
+  ["Video - Frame Grabber", { inputs: ["Video"], outputs: ["Image"] }],
+  ["Data - Fingerprinter", { inputs: ["Data"], outputs: ["Data"] }],
+  ["Data - LlamaParse", { inputs: ["Data"], outputs: ["Audio", "Image", "Table", "Text", "Video"] }],
+  ["Data - Parser", { inputs: ["Data"], outputs: ["Audio", "Image", "Table", "Text", "Video"] }],
+  ["Data - Reducto", { inputs: ["Data"], outputs: ["Data"] }],
+  ["HTTP Results", { inputs: ["Data"], outputs: ["Data"] }],
+  ["Return Answers", { inputs: ["Data"], outputs: [] }],
+  ["Return Audio", { inputs: ["Audio"], outputs: [] }],
+  ["Return Documents", { inputs: ["Data"], outputs: [] }],
+  ["Return Image", { inputs: ["Image"], outputs: [] }],
+  ["Return Questions", { inputs: ["Data"], outputs: [] }],
+  ["Return Table", { inputs: ["Data"], outputs: [] }],
+  ["Return Text", { inputs: ["Text"], outputs: [] }],
+  ["Return Video", { inputs: ["Video"], outputs: [] }],
+]);
+
+const slugify = (value) =>
+  value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+const makePorts = (labels, kind, base) =>
+  labels.map((label, index) => ({
+    id: `${kind}-${slugify(base)}-${index}`,
+    label,
+    type: kind,
+  }));
+
 export default function ProjectsCanvas({ flowOptions, projectId }) {
   const { projects, updateProject } = useProjects();
   const activeProject =
@@ -571,7 +660,9 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
         })
       : { x: baseX, y: baseY };
     const nodeId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const isSource = groupId === "source";
+    const nodeIO = NODE_IO.get(label);
+    const inputs = nodeIO?.inputs ?? (groupId === "source" ? [] : ["In"]);
+    const outputs = nodeIO?.outputs ?? (groupId === "source" ? ["Data"] : ["Out"]);
     const icon = getIconForKey(label);
     const newNode = {
       id: nodeId,
@@ -581,14 +672,8 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
         title: label,
         iconSrc: icon.url,
         meta: groupId.toUpperCase(),
-        inputs: isSource ? [] : [{ id: "in", label: "In", type: "input" }],
-        outputs: [
-          {
-            id: "out",
-            label: isSource ? "Data" : "Out",
-            type: "output",
-          },
-        ],
+        inputs: makePorts(inputs, "input", label),
+        outputs: makePorts(outputs, "output", label),
       },
     };
     setNodes((prev) => [...prev, newNode]);

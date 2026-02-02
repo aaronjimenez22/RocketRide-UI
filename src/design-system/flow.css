@@ -917,6 +917,11 @@
   color: var(--color-text-muted);
 }
 
+.rr-node-inventory__search:focus-within {
+  border-color: rgba(var(--color-accent-primary-rgb), 0.6);
+  box-shadow: var(--shadow-glow);
+}
+
 .rr-node-inventory__search img {
   width: 16px;
   height: 16px;
@@ -968,6 +973,7 @@
 .rr-node-group__items {
   display: grid;
   gap: 6px;
+  grid-auto-rows: 44px;
 }
 
 .rr-node-item {
@@ -975,13 +981,14 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 4px 4px;
+  padding: 4px 6px;
   border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
   text-align: left;
+  height: 44px;
   transition: border-color var(--transition-base),
     background var(--transition-base), color var(--transition-base);
 }
@@ -1010,6 +1017,9 @@
 
 .rr-node-item__label {
   font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rr-node-item__tooltip {
