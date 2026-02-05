@@ -438,7 +438,7 @@
   -webkit-backdrop-filter: blur(8px);
   display: grid;
   place-items: center;
-  z-index: 50;
+  z-index: 120;
 }
 
 .rr-project-modal {

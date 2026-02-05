@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import ReactFlow, {
   Background,
   addEdge,
@@ -9,6 +10,7 @@ import FlowNode from "../components/FlowNode";
 import FlowEdge from "../components/FlowEdge";
 import { iconNames, iconUrl, getIconForKey } from "../utils/iconLibrary";
 import { useProjects } from "../state/projectsStore.jsx";
+import ConnectMenuNode from "../components/ConnectMenuNode.jsx";
 
 const initialNodes = [
   {
@@ -396,6 +398,15 @@ const makePorts = (labels, kind, base) =>
     type: kind,
   }));
 
+const makePlaceholderPort = (base) => [
+  {
+    id: `placeholder-${slugify(base)}`,
+    label: "",
+    type: "input",
+    isPlaceholder: true,
+  },
+];
+
 export default function ProjectsCanvas({ flowOptions, projectId }) {
   const { projects, updateProject } = useProjects();
   const activeProject =
@@ -409,6 +420,17 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
   const [hoveredEdgeId, setHoveredEdgeId] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
   const [nodesLocked, setNodesLocked] = useState(false);
+  const [connectingLabel, setConnectingLabel] = useState(null);
+  const [connectMenu, setConnectMenu] = useState(null);
+  const [connectMenuCategory, setConnectMenuCategory] = useState("Recommended");
+  const [connectPreview, setConnectPreview] = useState(null);
+  const didConnectRef = useRef(false);
+  const connectContextRef = useRef(null);
+  const connectPreviewRef = useRef(null);
+  const suppressPaneClickRef = useRef(0);
+  const MENU_NODE_WIDTH = 420;
+  const MENU_NODE_HEIGHT = 420;
+  const MENU_OFFSET_X = 40;
   const [projectTitle, setProjectTitle] = useState(
     activeProject?.name ?? "Untitled Project"
   );
@@ -431,6 +453,9 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [inventoryQuery, setInventoryQuery] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
+  const [inventoryTooltip, setInventoryTooltip] = useState(null);
+  const [isTooltipHovered, setIsTooltipHovered] = useState(false);
+  const hideTooltipTimer = useRef(null);
 
   const shortcutsRef = useRef(null);
   const saveRef = useRef(null);
@@ -441,7 +466,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
   const previousTitleRef = useRef(projectTitle);
 
 
-  const triggerSave = () => {
+  const triggerSave = useCallback(() => {
     if (!autosaveEnabled) {
       return;
     }
@@ -452,10 +477,14 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     saveTimerRef.current = setTimeout(() => {
       setSaveState("saved");
     }, 900);
-  };
+  }, [autosaveEnabled]);
 
   const onConnect = (connection) => {
     setEdges((eds) => addEdge(connection, eds));
+    setConnectMenu(null);
+    setConnectingLabel(null);
+    setConnectPreview(null);
+    didConnectRef.current = true;
     triggerSave();
   };
 
@@ -463,10 +492,69 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     setSelectedEdgeId(null);
   };
 
+  const handleConnectStart = (_, params) => {
+    setSelectedEdgeId(null);
+    if (params?.handleType === "source" && params.handleId) {
+      didConnectRef.current = false;
+      const label = portLabelByHandle.get(params.handleId);
+      setConnectingLabel(label ?? null);
+      const context = {
+        open: true,
+        sourceNodeId: params.nodeId,
+        sourceHandle: params.handleId,
+        outputLabel: label ?? null,
+        x: null,
+        y: null,
+      };
+      connectContextRef.current = context;
+      setConnectMenu(context);
+      setConnectMenuCategory("Recommended");
+    }
+  };
+
+  const handleConnectEnd = () => {
+    if (!connectMenu?.open) return;
+  };
+
   const handleDeleteEdge = (edgeId) => {
     setEdges((eds) => eds.filter((edge) => edge.id !== edgeId));
     triggerSave();
   };
+
+  useEffect(() => {
+    if (!connectingLabel) return;
+    const handleMove = (event) => {
+      setConnectPreview({ x: event.clientX, y: event.clientY });
+      connectPreviewRef.current = { x: event.clientX, y: event.clientY };
+    };
+    const handleUp = (event) => {
+      if (!didConnectRef.current) {
+        const preview = connectPreviewRef.current;
+        const x = preview?.x ?? event.clientX;
+        const y = preview?.y ?? event.clientY;
+        if (x && y) {
+          const context = connectContextRef.current ?? {};
+          const nextMenu = {
+            ...context,
+            open: true,
+            x,
+            y,
+          };
+          setConnectMenu(nextMenu);
+          suppressPaneClickRef.current = Date.now();
+        }
+      }
+      setConnectPreview(null);
+      connectPreviewRef.current = null;
+      setConnectingLabel(null);
+    };
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, [connectingLabel]);
 
   const portLabelByHandle = useMemo(() => {
     const portMap = new Map();
@@ -508,9 +596,10 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
         data: {
           ...node.data,
           connectedPorts,
+          highlightInputLabel: connectingLabel,
         },
       })),
-    [nodes, connectedPorts]
+    [nodes, connectedPorts, connectingLabel]
   );
 
   const decoratedEdges = useMemo(
@@ -528,7 +617,10 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     [edges, hoveredEdgeId, selectedEdgeId]
   );
 
-  const nodeTypes = useMemo(() => ({ rrNode: FlowNode }), []);
+  const nodeTypes = useMemo(
+    () => ({ rrNode: FlowNode, rrConnectMenu: ConnectMenuNode }),
+    []
+  );
   const edgeTypes = useMemo(() => ({ rrEdge: FlowEdge }), []);
 
   const options = useMemo(
@@ -678,6 +770,247 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     };
     setNodes((prev) => [...prev, newNode]);
     triggerSave();
+  };
+
+  const categoryIcons = {
+    Recommended: "arrow-right",
+    Source: "download",
+    Embedding: "stack",
+    LLM: "cpu",
+    Database: "database",
+    Image: "image",
+    Preprocessor: "filters",
+    Store: "archive",
+    Text: "align-left",
+    Audio: "volume",
+    Video: "video",
+    Data: "table",
+    Infrastructure: "link",
+  };
+
+  const getCompatibleNodes = useMemo(() => {
+    if (!connectMenu?.outputLabel) return [];
+    const label = connectMenu.outputLabel;
+    return NODE_GROUPS.flatMap((group) =>
+      group.nodes
+        .filter((node) => (NODE_IO.get(node)?.inputs ?? []).includes(label))
+        .map((node) => ({ node, group: group.label }))
+    );
+  }, [connectMenu]);
+
+  const connectMenuGroups = useMemo(
+    () =>
+      NODE_GROUPS.map((group) => ({
+        label: group.label,
+        nodes: group.nodes,
+      })),
+    []
+  );
+
+  const recommendedNodes = useMemo(
+    () => getCompatibleNodes.slice(0, 4).map((item) => item.node),
+    [getCompatibleNodes]
+  );
+
+  const connectMenuCategories = useMemo(() => {
+    const categories = [{ label: "Recommended", icon: categoryIcons.Recommended }];
+    NODE_GROUPS.forEach((group) => {
+      categories.push({
+        label: group.label,
+        icon: getIconForKey(group.label).name,
+      });
+    });
+    return categories;
+  }, []);
+
+  const nodesByCategory = useMemo(() => {
+    const mapping = { Recommended: recommendedNodes };
+    connectMenuGroups.forEach((group) => {
+      mapping[group.label] = group.nodes;
+    });
+    return mapping;
+  }, [recommendedNodes, connectMenuGroups]);
+
+  const compatibleNodeSet = useMemo(
+    () => new Set(getCompatibleNodes.map((item) => item.node)),
+    [getCompatibleNodes]
+  );
+
+  const handleSelectConnectNode = useCallback(
+    (label) => {
+    if (!connectMenu?.outputLabel || !connectMenu?.sourceNodeId) return;
+    const outputLabel = connectMenu.outputLabel;
+    const baseX = connectMenu.x ?? window.innerWidth * 0.5;
+    const baseY = connectMenu.y ?? window.innerHeight * 0.5;
+    const position = reactFlowInstance
+      ? reactFlowInstance.project({
+          x: baseX + 220,
+          y: baseY - 60,
+        })
+      : { x: baseX + 220, y: baseY - 60 };
+    const nodeId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const io = NODE_IO.get(label);
+    const inputs = io?.inputs ?? [outputLabel];
+    const outputs = io?.outputs ?? ["Out"];
+    const newNode = {
+      id: nodeId,
+      position,
+      type: "rrNode",
+      data: {
+        title: label,
+        iconSrc: getIconForKey(label).url,
+        meta: "NEXT",
+        inputs: makePorts(inputs, "input", label),
+        outputs: makePorts(outputs, "output", label),
+      },
+    };
+    const targetHandle = `${nodeId}:${newNode.data.inputs[0]?.id ?? ""}`;
+    setNodes((prev) => [
+      ...prev.filter((node) => node.id !== "connect-menu"),
+      newNode,
+    ]);
+    setEdges((prev) =>
+      addEdge(
+        {
+          source: connectMenu.sourceNodeId,
+          sourceHandle: connectMenu.sourceHandle,
+          target: nodeId,
+          targetHandle,
+        },
+        prev.filter((edge) => edge.target !== "connect-menu")
+      )
+    );
+    setConnectMenu(null);
+    setConnectingLabel(null);
+    triggerSave();
+    },
+    [connectMenu, reactFlowInstance, triggerSave]
+  );
+
+  const connectMenuData = useMemo(
+    () => ({
+      categories: connectMenuCategories,
+      activeCategory: connectMenuCategory,
+      onSelectCategory: setConnectMenuCategory,
+      onClose: () => {
+        setConnectMenu(null);
+        setConnectingLabel(null);
+        setNodes((prev) => prev.filter((node) => node.type !== "rrConnectMenu"));
+        setEdges((prev) => prev.filter((edge) => edge.target !== "connect-menu"));
+      },
+      nodesByCategory,
+      onPickNode: handleSelectConnectNode,
+      getDescription: getNodeDescription,
+      meta: "MENU",
+      compatibleNodes: compatibleNodeSet,
+    }),
+    [
+      connectMenuCategories,
+      connectMenuCategory,
+      nodesByCategory,
+      compatibleNodeSet,
+      handleSelectConnectNode,
+      getNodeDescription,
+    ]
+  );
+
+  useEffect(() => {
+    if (!connectMenu?.open || connectMenu.x === null || connectMenu.y === null) {
+      setNodes((prev) => prev.filter((node) => node.type !== "rrConnectMenu"));
+      return;
+    }
+    let shouldAddEdge = false;
+    let placeholderId = null;
+    const placeholderHandleId = "connect-menu:placeholder-connect-menu";
+    setNodes((prev) => {
+      const hasMenuNode = prev.some((node) => node.id === "connect-menu");
+      if (!hasMenuNode) {
+        shouldAddEdge = true;
+        const position = reactFlowInstance.project({
+          x: connectMenu.x + MENU_OFFSET_X,
+          y: connectMenu.y - MENU_NODE_HEIGHT / 2,
+        });
+        const inputs = makePlaceholderPort("connect-menu");
+        placeholderId = inputs[0]?.id ?? null;
+        const menuNode = {
+          id: "connect-menu",
+          type: "rrConnectMenu",
+          position,
+          draggable: true,
+          selectable: true,
+          data: connectMenuData,
+        };
+        menuNode.data.inputs = inputs;
+        return [
+          ...prev.filter((node) => node.type !== "rrConnectMenu"),
+          menuNode,
+        ];
+      }
+      return prev.map((node) =>
+        node.id === "connect-menu"
+          ? {
+              ...node,
+              data: connectMenuData,
+            }
+          : node
+      );
+    });
+    if (shouldAddEdge) {
+      if (connectMenu.sourceNodeId && connectMenu.sourceHandle && placeholderId) {
+        setEdges((prev) =>
+          addEdge(
+            {
+              source: connectMenu.sourceNodeId,
+              sourceHandle: connectMenu.sourceHandle,
+              target: "connect-menu",
+              targetHandle: `connect-menu:${placeholderId}`,
+            },
+            prev.filter((edge) => edge.target !== "connect-menu")
+          )
+        );
+      }
+      return;
+    }
+    if (connectMenu.sourceNodeId && connectMenu.sourceHandle) {
+      setEdges((prev) =>
+        addEdge(
+          {
+            source: connectMenu.sourceNodeId,
+            sourceHandle: connectMenu.sourceHandle,
+            target: "connect-menu",
+            targetHandle: placeholderHandleId,
+          },
+          prev.filter((edge) => edge.target !== "connect-menu")
+        )
+      );
+    }
+  }, [
+    connectMenu,
+    connectMenuData,
+    reactFlowInstance,
+  ]);
+
+  const showInventoryTooltip = (event, label) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (hideTooltipTimer.current) {
+      clearTimeout(hideTooltipTimer.current);
+    }
+    setInventoryTooltip({
+      title: label,
+      description: getNodeDescription(label),
+      rect,
+    });
+  };
+
+  const hideInventoryTooltip = () => {
+    if (hideTooltipTimer.current) {
+      clearTimeout(hideTooltipTimer.current);
+    }
+    hideTooltipTimer.current = setTimeout(() => {
+      if (!isTooltipHovered) {
+        setInventoryTooltip(null);
+      }
+    }, 120);
   };
 
   return (
@@ -1044,23 +1377,15 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
                           type="button"
                           className="rr-node-item"
                           onClick={() => addInventoryNode(node, group.id)}
+                          onMouseEnter={(event) =>
+                            showInventoryTooltip(event, node)
+                          }
+                          onMouseLeave={hideInventoryTooltip}
                         >
                           <span className="rr-node-item__icon">
                             <img src={icon.url} alt="" />
                           </span>
                           <span className="rr-node-item__label">{node}</span>
-                          <span className="rr-node-item__tooltip">
-                            <span className="rr-node-item__tooltip-title">
-                              {node}
-                            </span>
-                            <span className="rr-node-item__tooltip-body">
-                              {getNodeDescription(node)}
-                            </span>
-                            <span className="rr-node-item__tooltip-doc">
-                              <img src={iconUrl("file")} alt="" />
-                              Docs
-                            </span>
-                          </span>
                         </button>
                       );
                     })}
@@ -1071,20 +1396,61 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
           })}
         </div>
       </aside>
+      {inventoryTooltip &&
+        createPortal(
+          <div
+            className="rr-node-item__tooltip rr-node-item__tooltip--portal"
+            style={{
+              top: `${inventoryTooltip.rect.top + inventoryTooltip.rect.height / 2}px`,
+              left: `${inventoryTooltip.rect.left - 12}px`,
+            }}
+            onMouseEnter={() => {
+              if (hideTooltipTimer.current) {
+                clearTimeout(hideTooltipTimer.current);
+              }
+              setIsTooltipHovered(true);
+            }}
+            onMouseLeave={() => {
+              setIsTooltipHovered(false);
+              setInventoryTooltip(null);
+            }}
+          >
+            <span className="rr-node-item__tooltip-title">
+              {inventoryTooltip.title}
+            </span>
+            <span className="rr-node-item__tooltip-body">
+              {inventoryTooltip.description}
+            </span>
+            <span className="rr-node-item__tooltip-doc">
+              <img src={iconUrl("file")} alt="" />
+              Docs
+            </span>
+          </div>,
+          document.body
+        )}
       <ReactFlow
         nodes={decoratedNodes}
         edges={decoratedEdges}
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
-        onConnectStart={onConnectStart}
+        onConnectStart={handleConnectStart}
+        onConnectEnd={handleConnectEnd}
         isValidConnection={isValidConnection}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
         onEdgeMouseLeave={() => setHoveredEdgeId(null)}
         onEdgeClick={(_, edge) => setSelectedEdgeId(edge.id)}
-        onPaneClick={() => setSelectedEdgeId(null)}
+        onPaneClick={() => {
+          setSelectedEdgeId(null);
+          if (Date.now() - suppressPaneClickRef.current < 200) {
+            return;
+          }
+          setConnectMenu(null);
+          setConnectingLabel(null);
+          setConnectPreview(null);
+        }}
         onNodeClick={() => setSelectedEdgeId(null)}
         fitView={options.fitView}
         minZoom={options.minZoom}
@@ -1094,8 +1460,21 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
         onInit={setReactFlowInstance}
         proOptions={{ hideAttribution: true }}
       >
-        <Background gap={24} size={1} color="rgba(255,255,255,0.05)" />
+        <Background gap={24} size={1} color="rgba(255,255,255,0.08)" />
       </ReactFlow>
+      {connectPreview && connectingLabel && (
+        <div
+          className="rr-connect-preview"
+          style={{
+            top: connectPreview.y,
+            left: connectPreview.x,
+          }}
+        >
+          <span className="rr-connect-preview__label">
+            {connectingLabel}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

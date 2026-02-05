@@ -17,6 +17,7 @@ function FlowPort({
   isAnyHovered,
   isActive,
   isConnected,
+  isEligible,
   onHoverStart,
   onHoverEnd,
   onActivate,
@@ -41,12 +42,16 @@ function FlowPort({
         isHovered ? "is-hovered" : "",
         isActive ? "is-active" : "",
         isConnected ? "is-connected" : "",
+        isEligible ? "is-eligible" : "",
+        port.isPlaceholder ? "is-placeholder" : "",
       ]
         .filter(Boolean)
         .join(" ")}
     >
       {/* Output labels sit to the left of the anchor */}
-      {isOutput && <span className={labelClassName}>{port.label}</span>}
+      {isOutput && port.label && (
+        <span className={labelClassName}>{port.label}</span>
+      )}
       <div
         className="rr-flow-port__anchor nodrag"
         style={{
@@ -84,7 +89,9 @@ function FlowPort({
         />
       </div>
       {/* Input labels sit to the right of the anchor */}
-      {!isOutput && <span className={labelClassName}>{port.label}</span>}
+      {!isOutput && port.label && (
+        <span className={labelClassName}>{port.label}</span>
+      )}
     </div>
   );
 }
@@ -104,6 +111,7 @@ function FlowNode({ id, data }) {
   const inputs = data.inputs ?? [];
   const outputs = data.outputs ?? [];
   const connectedPorts = data.connectedPorts ?? new Set();
+  const highlightInputLabel = data.highlightInputLabel;
 
   const handleMenuAction = (action) => {
     console.log(`${action} clicked for node ${id}`);
@@ -263,6 +271,9 @@ function FlowNode({ id, data }) {
               isAnyHovered={hoveredPortId !== null}
               isActive={activePortId === input.id}
               isConnected={connectedPorts.has(`${id}:${input.id}`)}
+              isEligible={
+                highlightInputLabel && highlightInputLabel === input.label
+              }
               onHoverStart={() => setHoveredPortId(input.id)}
               onHoverEnd={() => setHoveredPortId(null)}
               onActivate={(portId) =>

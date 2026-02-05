@@ -120,6 +120,11 @@ const themeOptions = [
     label: "Orbital Systems",
     meta: "Diagrammatic calm",
   },
+  {
+    id: "interstellar",
+    label: "Interstellar",
+    meta: "Charcoal core, solar flare",
+  },
 ];
 
 /**

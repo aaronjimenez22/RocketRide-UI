@@ -385,6 +385,10 @@
   );
 }
 
+.rr-sidebar__theme-swatch[data-theme="interstellar"] {
+  background: linear-gradient(135deg, #b21c00 0%, #ff5830 100%);
+}
+
 .rr-sidebar__theme-text {
   display: grid;
   gap: 2px;

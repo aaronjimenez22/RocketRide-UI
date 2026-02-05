@@ -16,13 +16,14 @@
 }
 
 .rr-main.is-canvas {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .rr-canvas {
   flex: 1;
   height: 100%;
   position: relative;
+  overflow: visible;
   background: radial-gradient(
     circle at top left,
     rgba(255, 255, 255, 0.03),

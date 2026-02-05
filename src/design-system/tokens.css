@@ -171,3 +171,45 @@
 
   --shadow-glow: 0 0 0 1px rgba(var(--color-accent-primary-rgb), 0.25);
 }
+
+:root[data-theme="interstellar"] {
+  --color-bg-primary: #0e0e0e;
+  --color-bg-secondary: #1a1b1d;
+  --color-bg-tertiary: #24272b;
+  --color-bg-primary-rgb: 14, 14, 14;
+  --color-bg-secondary-rgb: 26, 27, 29;
+  --color-bg-tertiary-rgb: 36, 39, 43;
+  --color-surface-node: #151515;
+
+  --color-accent-primary: #ff5830;
+  --color-accent-primary-rgb: 255, 88, 48;
+  --color-accent-secondary: #ff8f41;
+  --color-accent-secondary-rgb: 255, 143, 65;
+  --color-accent-peak: #b21c00;
+  --color-accent-peak-rgb: 178, 28, 0;
+  --color-accent-neutral: #d8e1ee;
+  --color-accent-neutral-rgb: 216, 225, 238;
+
+  --color-text-primary: #d8e1ee;
+  --color-text-secondary: #b0bac7;
+  --color-text-muted: #7b8695;
+
+  --gradient-hero: linear-gradient(
+    90deg,
+    #0e0e0e 0%,
+    #1a1b1d 45%,
+    #24272b 70%,
+    #ff5830 100%
+  );
+  --gradient-axis: linear-gradient(135deg, #b21c00 0%, #ff5830 100%);
+  --gradient-accent: linear-gradient(135deg, #ff8f41 0%, #ff5830 100%);
+  --gradient-accent-active: linear-gradient(135deg, #b21c00 0%, #ff8f41 100%);
+  --gradient-node-core: radial-gradient(
+    circle,
+    #ff5830 0%,
+    #b21c00 60%,
+    rgba(255, 88, 48, 0) 100%
+  );
+
+  --shadow-glow: 0 0 0 1px rgba(var(--color-accent-primary-rgb), 0.25);
+}
