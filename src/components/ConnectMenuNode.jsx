@@ -21,6 +21,7 @@ export default function ConnectMenuNode({ id, data }) {
 
   const placeholderId = data?.inputs?.[0]?.id;
 
+  // Use a portal tooltip so it can overflow the node and canvas safely.
   const showTooltip = (event, node) => {
     const rect = event.currentTarget.getBoundingClientRect();
     setTooltip({ node, rect });

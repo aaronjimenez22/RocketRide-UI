@@ -1,0 +1,108 @@
+.rr-theme-builder {
+  display: grid;
+  gap: var(--space-8);
+  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.rr-theme-builder__panel {
+  background: var(--color-bg-secondary);
+  border: var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-7);
+  box-shadow: var(--shadow-subtle);
+}
+
+.rr-theme-builder__header {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.rr-theme-builder__form {
+  gap: var(--space-6);
+}
+
+.rr-input-group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.rr-input-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.rr-theme-builder__grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.rr-theme-builder__token {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.rr-theme-builder__token-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.rr-theme-builder__token-control {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.rr-theme-builder__token-control input[type="color"] {
+  width: 40px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: var(--border-muted);
+  background: transparent;
+  padding: 0;
+}
+
+.rr-theme-builder__token-control .rr-input {
+  height: 36px;
+}
+
+.rr-theme-builder__actions {
+  justify-content: space-between;
+}
+
+.rr-theme-builder__preview {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.rr-theme-builder__preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rr-theme-builder__preview-grid {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.rr-theme-builder__preview-surface {
+  background: rgba(var(--color-bg-secondary-rgb), 0.9);
+  border: var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.rr-theme-builder__preview-surface .rr-component-row {
+  gap: var(--space-3);
+}
+
+@media (max-width: 960px) {
+  .rr-theme-builder {
+    grid-template-columns: 1fr;
+  }
+}

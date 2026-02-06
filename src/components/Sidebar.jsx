@@ -101,32 +101,6 @@ const utilityItems = [
   { id: "api-keys", label: "API Keys", icon: icons.keys },
 ];
 
-// THEME OPTIONS
-// Used by the theme selector popover
-// Format: { id: "theme-id", label: "Theme Name", meta: "Description" }
-const themeOptions = [
-  {
-    id: "tungsten",
-    label: "Tungsten",
-    meta: "Warm industrial glow",
-  },
-  {
-    id: "singularity",
-    label: "Singularity",
-    meta: "Focused energy axis",
-  },
-  {
-    id: "orbital",
-    label: "Orbital Systems",
-    meta: "Diagrammatic calm",
-  },
-  {
-    id: "interstellar",
-    label: "Interstellar",
-    meta: "Charcoal core, solar flare",
-  },
-];
-
 /**
  * Sidebar Component
  * 
@@ -136,8 +110,17 @@ const themeOptions = [
  * @param {string} theme - Current theme identifier
  * @param {function} onThemeChange - Callback function called when theme is changed
  *                                   Receives the theme id as parameter: onThemeChange(themeId)
+ * @param {Array} themeOptions - Available theme options (base + custom)
+ * @param {function} onCreateTheme - Callback when user wants to create a new theme
  */
-export default function Sidebar({ activeView, onNavigate, theme, onThemeChange }) {
+export default function Sidebar({
+  activeView,
+  onNavigate,
+  theme,
+  onThemeChange,
+  themeOptions = [],
+  onCreateTheme,
+}) {
   // STATE MANAGEMENT
   
   // Collapsed state - controls whether sidebar is collapsed (icons only) or expanded (full width)
@@ -233,10 +216,12 @@ export default function Sidebar({ activeView, onNavigate, theme, onThemeChange }
           onClick={() => setCollapsed((value) => !value)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          <img
-            src={collapsed ? icons.expand : icons.collapse}
-            alt=""
+          <span
             className="rr-icon-image"
+            style={{
+              "--rr-icon-url": `url(${collapsed ? icons.expand : icons.collapse})`,
+            }}
+            aria-hidden="true"
           />
         </button>
       </div>
@@ -272,7 +257,11 @@ export default function Sidebar({ activeView, onNavigate, theme, onThemeChange }
               onClick={() => onNavigate(item.id)}
             >
               <span className="rr-icon">
-                <img src={item.icon} alt="" className="rr-icon-image" />
+                <span
+                  className="rr-icon-image"
+                  style={{ "--rr-icon-url": `url(${item.icon})` }}
+                  aria-hidden="true"
+                />
               </span>
               <span className="rr-sidebar__item-label">{item.label}</span>
             </button>
@@ -309,7 +298,11 @@ export default function Sidebar({ activeView, onNavigate, theme, onThemeChange }
                 onClick={() => onNavigate(item.id)}
               >
                 <span className="rr-icon">
-                  <img src={item.icon} alt="" className="rr-icon-image" />
+                  <span
+                    className="rr-icon-image"
+                    style={{ "--rr-icon-url": `url(${item.icon})` }}
+                    aria-hidden="true"
+                  />
                 </span>
                 <span className="rr-sidebar__item-label">{item.label}</span>
               </button>
@@ -349,7 +342,11 @@ export default function Sidebar({ activeView, onNavigate, theme, onThemeChange }
                 onClick={() => setHelpOpen((value) => !value)}
               >
                 <span className="rr-icon">
-                  <img src={icons.help} alt="" className="rr-icon-image" />
+                  <span
+                    className="rr-icon-image"
+                    style={{ "--rr-icon-url": `url(${icons.help})` }}
+                    aria-hidden="true"
+                  />
                 </span>
                 <span className="rr-sidebar__item-label">Help</span>
               </button>
@@ -397,7 +394,11 @@ export default function Sidebar({ activeView, onNavigate, theme, onThemeChange }
                   onClick={() => onNavigate(item.id)}
                 >
                   <span className="rr-icon">
-                    <img src={item.icon} alt="" className="rr-icon-image" />
+                    <span
+                      className="rr-icon-image"
+                      style={{ "--rr-icon-url": `url(${item.icon})` }}
+                      aria-hidden="true"
+                    />
                   </span>
                   <span className="rr-sidebar__item-label">{item.label}</span>
                 </button>
@@ -433,7 +434,11 @@ export default function Sidebar({ activeView, onNavigate, theme, onThemeChange }
               aria-haspopup="true"
             >
               <span className="rr-icon">
-                <img src={icons.palette} alt="" className="rr-icon-image" />
+                <span
+                  className="rr-icon-image"
+                  style={{ "--rr-icon-url": `url(${icons.palette})` }}
+                  aria-hidden="true"
+                />
               </span>
               <span className="rr-sidebar__item-label">Theme</span>
               {/* Current theme label - hidden when collapsed */}
@@ -463,7 +468,8 @@ export default function Sidebar({ activeView, onNavigate, theme, onThemeChange }
                   {/* Color swatch - styled via CSS data-theme attribute */}
                   <span
                     className="rr-sidebar__theme-swatch"
-                    data-theme={option.id}
+                    data-theme={option.swatch ? undefined : option.id}
+                    style={option.swatch ? { background: option.swatch } : undefined}
                   />
                   <span className="rr-sidebar__theme-text">
                     <span className="rr-sidebar__theme-name">{option.label}</span>
@@ -471,6 +477,18 @@ export default function Sidebar({ activeView, onNavigate, theme, onThemeChange }
                   </span>
                 </button>
               ))}
+              <div className="rr-sidebar__theme-actions">
+                <button
+                  type="button"
+                  className="rr-sidebar__theme-create"
+                  onClick={() => {
+                    onCreateTheme?.();
+                    setThemeOpen(false);
+                  }}
+                >
+                  Create new theme
+                </button>
+              </div>
             </div>
           )}
         </div>

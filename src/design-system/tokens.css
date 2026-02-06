@@ -213,3 +213,45 @@
 
   --shadow-glow: 0 0 0 1px rgba(var(--color-accent-primary-rgb), 0.25);
 }
+
+:root[data-theme="nebula"] {
+  --color-bg-primary: #0e0e0e;
+  --color-bg-secondary: #1a1b1d;
+  --color-bg-tertiary: #24272b;
+  --color-bg-primary-rgb: 14, 14, 14;
+  --color-bg-secondary-rgb: 26, 27, 29;
+  --color-bg-tertiary-rgb: 36, 39, 43;
+  --color-surface-node: #151515;
+
+  --color-accent-primary: #3db6f2;
+  --color-accent-primary-rgb: 61, 182, 242;
+  --color-accent-secondary: #0b155f;
+  --color-accent-secondary-rgb: 11, 21, 95;
+  --color-accent-peak: #3db6f2;
+  --color-accent-peak-rgb: 61, 182, 242;
+  --color-accent-neutral: #dbe7f7;
+  --color-accent-neutral-rgb: 219, 231, 247;
+
+  --color-text-primary: #dbe7f7;
+  --color-text-secondary: #b2bfd3;
+  --color-text-muted: #7c8799;
+
+  --gradient-hero: linear-gradient(
+    90deg,
+    #0e0e0e 0%,
+    #1a1b1d 45%,
+    #24272b 70%,
+    #3db6f2 100%
+  );
+  --gradient-axis: linear-gradient(135deg, #0b155f 0%, #3db6f2 100%);
+  --gradient-accent: linear-gradient(135deg, #0b155f 0%, #3db6f2 100%);
+  --gradient-accent-active: linear-gradient(135deg, #070012 0%, #0b155f 100%);
+  --gradient-node-core: radial-gradient(
+    circle,
+    #3db6f2 0%,
+    #0b155f 60%,
+    rgba(61, 182, 242, 0) 100%
+  );
+
+  --shadow-glow: 0 0 0 1px rgba(var(--color-accent-primary-rgb), 0.25);
+}

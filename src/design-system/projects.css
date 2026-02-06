@@ -355,7 +355,7 @@
   place-items: center;
   flex-shrink: 0;
   --rr-icon-url: none;
-  --rr-icon-color: var(--color-accent-primary);
+  --rr-icon-color: #ffffff;
 }
 
 .rr-projects__icon::before {

@@ -407,6 +407,577 @@ const makePlaceholderPort = (base) => [
   },
 ];
 
+const getGroupForNode = (label) =>
+  NODE_GROUPS.find((group) => group.nodes.includes(label)) ?? null;
+
+const buildConfigSections = (label, groupId) => {
+  const sections = [];
+  const addSection = (title, fields) => {
+    if (fields.length > 0) {
+      sections.push({ title, fields });
+    }
+  };
+
+  const addCommonIdentity = () => {
+    addSection("Identity", [
+      {
+        id: "node-name",
+        label: "Node Name",
+        type: "text",
+        placeholder: label,
+        defaultValue: label,
+      },
+      {
+        id: "node-description",
+        label: "Description",
+        type: "textarea",
+        placeholder: "Describe what this node does.",
+        defaultValue: getNodeDescription(label),
+      },
+      {
+        id: "node-enabled",
+        label: "Enabled",
+        type: "toggle",
+        defaultChecked: true,
+      },
+    ]);
+  };
+
+  const addAuthSection = () => {
+    addSection("Authentication", [
+      {
+        id: "auth-method",
+        label: "Auth Method",
+        type: "select",
+        options: ["OAuth", "API Key", "Service Account", "None"],
+        defaultValue: "OAuth",
+      },
+      {
+        id: "credential-name",
+        label: "Credential Set",
+        type: "text",
+        placeholder: "Select saved credentials",
+      },
+      {
+        id: "refresh-token",
+        label: "Auto Refresh Tokens",
+        type: "checkbox",
+        defaultChecked: true,
+      },
+    ]);
+  };
+
+  const addScheduleSection = () => {
+    addSection("Sync", [
+      {
+        id: "sync-mode",
+        label: "Sync Mode",
+        type: "select",
+        options: ["Continuous", "Hourly", "Daily", "Manual"],
+        defaultValue: "Continuous",
+      },
+      {
+        id: "include-archived",
+        label: "Include Archived",
+        type: "checkbox",
+        defaultChecked: false,
+      },
+      {
+        id: "incremental",
+        label: "Incremental Updates",
+        type: "toggle",
+        defaultChecked: true,
+      },
+    ]);
+  };
+
+  const addConnectionSection = (fields) => {
+    addSection("Connection", fields);
+  };
+
+  addCommonIdentity();
+
+  if (groupId === "source") {
+    const connectionFields = [
+      {
+        id: "endpoint",
+        label: "Endpoint / Host",
+        type: "text",
+        placeholder: "api.company.com",
+      },
+      {
+        id: "path",
+        label: "Path / Collection",
+        type: "text",
+        placeholder: "/shared/documents",
+      },
+    ];
+    if (label.includes("AWS S3")) {
+      connectionFields.unshift(
+        { id: "bucket", label: "Bucket", type: "text", placeholder: "rr-data" },
+        {
+          id: "region",
+          label: "Region",
+          type: "select",
+          options: ["us-east-1", "us-west-2", "eu-west-1"],
+          defaultValue: "us-east-1",
+        }
+      );
+    }
+    if (label.includes("Google Drive")) {
+      connectionFields.push({
+        id: "drive-id",
+        label: "Drive ID",
+        type: "text",
+        placeholder: "0A1B2C3D4E",
+      });
+    }
+    if (label.includes("Slack")) {
+      connectionFields.push({
+        id: "channel",
+        label: "Channel",
+        type: "text",
+        placeholder: "#customer-support",
+      });
+    }
+    if (label.includes("Web Hook")) {
+      connectionFields.push({
+        id: "webhook-url",
+        label: "Webhook URL",
+        type: "text",
+        placeholder: "https://hooks.example.com/",
+      });
+      connectionFields.push({
+        id: "method",
+        label: "HTTP Method",
+        type: "select",
+        options: ["POST", "PUT", "PATCH"],
+        defaultValue: "POST",
+      });
+    }
+    addConnectionSection(connectionFields);
+    addAuthSection();
+    addScheduleSection();
+    addSection("Content Filters", [
+      {
+        id: "include-patterns",
+        label: "Include Patterns",
+        type: "text",
+        placeholder: "*.pdf, *.docx",
+      },
+      {
+        id: "exclude-patterns",
+        label: "Exclude Patterns",
+        type: "text",
+        placeholder: "tmp/*, archive/*",
+      },
+    ]);
+  }
+
+  if (groupId === "embedding") {
+    addSection("Embedding Model", [
+      {
+        id: "embedding-model",
+        label: "Model",
+        type: "select",
+        options: [
+          "text-embedding-3-large",
+          "text-embedding-3-small",
+          "image-embedding-v2",
+        ],
+        defaultValue: "text-embedding-3-large",
+      },
+      {
+        id: "dimensions",
+        label: "Dimensions",
+        type: "number",
+        placeholder: "1536",
+        defaultValue: 1536,
+      },
+      {
+        id: "batch-size",
+        label: "Batch Size",
+        type: "number",
+        placeholder: "64",
+        defaultValue: 64,
+      },
+      {
+        id: "normalize",
+        label: "Normalize Vectors",
+        type: "toggle",
+        defaultChecked: true,
+      },
+    ]);
+  }
+
+  if (groupId === "llm") {
+    addSection("Model Setup", [
+      {
+        id: "llm-model",
+        label: "Model",
+        type: "select",
+        options: [
+          "gpt-4o",
+          "gpt-4o-mini",
+          "claude-3.5-sonnet",
+          "gemini-1.5-pro",
+        ],
+        defaultValue: "gpt-4o",
+      },
+      {
+        id: "temperature",
+        label: "Temperature",
+        type: "number",
+        placeholder: "0.3",
+        defaultValue: 0.3,
+      },
+      {
+        id: "max-tokens",
+        label: "Max Tokens",
+        type: "number",
+        placeholder: "2048",
+        defaultValue: 2048,
+      },
+      {
+        id: "streaming",
+        label: "Stream Responses",
+        type: "toggle",
+        defaultChecked: true,
+      },
+    ]);
+    addSection("Prompting", [
+      {
+        id: "system-prompt",
+        label: "System Prompt",
+        type: "textarea",
+        placeholder: "You are a helpful assistant...",
+      },
+      {
+        id: "output-format",
+        label: "Output Format",
+        type: "select",
+        options: ["Plain Text", "JSON", "Markdown"],
+        defaultValue: "Plain Text",
+      },
+    ]);
+  }
+
+  if (groupId === "database") {
+    addSection("Database Connection", [
+      { id: "db-host", label: "Host", type: "text", placeholder: "localhost" },
+      { id: "db-port", label: "Port", type: "number", placeholder: "3306", defaultValue: 3306 },
+      { id: "db-name", label: "Database", type: "text", placeholder: "rocketride" },
+      { id: "db-table", label: "Table", type: "text", placeholder: "documents" },
+      { id: "db-ssl", label: "Require SSL", type: "toggle", defaultChecked: true },
+    ]);
+  }
+
+  if (groupId === "image") {
+    addSection("Image Processing", [
+      {
+        id: "resolution",
+        label: "Resolution",
+        type: "select",
+        options: ["Original", "1024px", "2048px"],
+        defaultValue: "Original",
+      },
+      {
+        id: "color-space",
+        label: "Color Space",
+        type: "select",
+        options: ["RGB", "Grayscale"],
+        defaultValue: "RGB",
+      },
+      {
+        id: "output-format",
+        label: "Output Format",
+        type: "select",
+        options: ["PNG", "JPG", "WEBP"],
+        defaultValue: "PNG",
+      },
+    ]);
+  }
+
+  if (groupId === "preprocessor") {
+    addSection("Preprocessing", [
+      {
+        id: "chunk-size",
+        label: "Chunk Size",
+        type: "number",
+        placeholder: "1024",
+        defaultValue: 1024,
+      },
+      {
+        id: "overlap",
+        label: "Overlap",
+        type: "number",
+        placeholder: "120",
+        defaultValue: 120,
+      },
+      {
+        id: "strategy",
+        label: "Strategy",
+        type: "select",
+        options: ["Semantic", "Recursive", "Fixed"],
+        defaultValue: "Semantic",
+      },
+    ]);
+  }
+
+  if (groupId === "store") {
+    addSection("Vector Store", [
+      {
+        id: "index-name",
+        label: "Index Name",
+        type: "text",
+        placeholder: "rr-main",
+      },
+      {
+        id: "namespace",
+        label: "Namespace",
+        type: "text",
+        placeholder: "default",
+      },
+      {
+        id: "metric",
+        label: "Distance Metric",
+        type: "select",
+        options: ["cosine", "dot", "euclidean"],
+        defaultValue: "cosine",
+      },
+      {
+        id: "upsert-policy",
+        label: "Upsert Policy",
+        type: "select",
+        options: ["Merge", "Overwrite", "Skip Existing"],
+        defaultValue: "Merge",
+      },
+      {
+        id: "ttl",
+        label: "Retention (days)",
+        type: "number",
+        placeholder: "90",
+        defaultValue: 90,
+      },
+    ]);
+  }
+
+  if (groupId === "text") {
+    addSection("Text Operation", [
+      {
+        id: "language",
+        label: "Language",
+        type: "select",
+        options: ["Auto", "English", "Spanish", "French"],
+        defaultValue: "Auto",
+      },
+      {
+        id: "output-format",
+        label: "Output Format",
+        type: "select",
+        options: ["Text", "JSON", "Markdown"],
+        defaultValue: "Text",
+      },
+    ]);
+    if (label.includes("Classification")) {
+      addSection("Classification", [
+        {
+          id: "labels",
+          label: "Labels",
+          type: "text",
+          placeholder: "Finance, Legal, Support",
+        },
+        {
+          id: "threshold",
+          label: "Confidence Threshold",
+          type: "number",
+          placeholder: "0.7",
+          defaultValue: 0.7,
+        },
+      ]);
+    }
+    if (label.includes("Summarization")) {
+      addSection("Summarization", [
+        {
+          id: "summary-length",
+          label: "Summary Length",
+          type: "select",
+          options: ["Short", "Medium", "Long"],
+          defaultValue: "Medium",
+        },
+        {
+          id: "bullet-points",
+          label: "Bullet Points",
+          type: "toggle",
+          defaultChecked: true,
+        },
+      ]);
+    }
+    if (label.includes("Question")) {
+      addSection("Questions", [
+        {
+          id: "question-count",
+          label: "Number of Questions",
+          type: "number",
+          placeholder: "5",
+          defaultValue: 5,
+        },
+      ]);
+    }
+    if (label.includes("Anonymize")) {
+      addSection("Anonymization", [
+        {
+          id: "entities",
+          label: "Entities",
+          type: "text",
+          placeholder: "PII, SSN, Address",
+        },
+      ]);
+    }
+    if (label.includes("Prompt")) {
+      addSection("Prompt", [
+        {
+          id: "prompt-template",
+          label: "Prompt Template",
+          type: "textarea",
+          placeholder: "Rewrite the text in a friendly tone...",
+        },
+      ]);
+    }
+    if (label.includes("Dictionary")) {
+      addSection("Dictionary", [
+        {
+          id: "terms",
+          label: "Terms",
+          type: "textarea",
+          placeholder: "term1=definition1",
+        },
+      ]);
+    }
+    if (label.includes("Data Extractor")) {
+      addSection("Schema", [
+        {
+          id: "schema",
+          label: "Extraction Schema",
+          type: "textarea",
+          placeholder: "{ name: string, date: string }",
+        },
+      ]);
+    }
+  }
+
+  if (groupId === "audio") {
+    addSection("Audio Settings", [
+      {
+        id: "language",
+        label: "Language",
+        type: "select",
+        options: ["Auto", "English", "Spanish"],
+        defaultValue: "Auto",
+      },
+      {
+        id: "diarization",
+        label: "Speaker Diarization",
+        type: "toggle",
+        defaultChecked: true,
+      },
+      {
+        id: "timestamps",
+        label: "Word Timestamps",
+        type: "checkbox",
+        defaultChecked: false,
+      },
+    ]);
+  }
+
+  if (groupId === "video") {
+    addSection("Frame Extraction", [
+      {
+        id: "fps",
+        label: "Frames per Second",
+        type: "number",
+        placeholder: "1",
+        defaultValue: 1,
+      },
+      {
+        id: "max-frames",
+        label: "Max Frames",
+        type: "number",
+        placeholder: "300",
+        defaultValue: 300,
+      },
+    ]);
+  }
+
+  if (groupId === "data") {
+    addSection("Parsing", [
+      {
+        id: "output-type",
+        label: "Output Types",
+        type: "select",
+        options: ["Auto", "Text", "Table", "JSON"],
+        defaultValue: "Auto",
+      },
+      {
+        id: "detect-language",
+        label: "Detect Language",
+        type: "toggle",
+        defaultChecked: true,
+      },
+    ]);
+  }
+
+  if (groupId === "infrastructure") {
+    addSection("Response", [
+      {
+        id: "return-type",
+        label: "Return Type",
+        type: "select",
+        options: ["Text", "Image", "Table", "Audio", "Video", "Documents"],
+        defaultValue: "Text",
+      },
+      {
+        id: "http-status",
+        label: "HTTP Status",
+        type: "number",
+        placeholder: "200",
+        defaultValue: 200,
+      },
+      {
+        id: "headers",
+        label: "Headers",
+        type: "textarea",
+        placeholder: "Content-Type: application/json",
+      },
+    ]);
+  }
+
+  addSection("Advanced", [
+    {
+      id: "retries",
+      label: "Retry Attempts",
+      type: "number",
+      placeholder: "2",
+      defaultValue: 2,
+    },
+    {
+      id: "timeout",
+      label: "Timeout (seconds)",
+      type: "number",
+      placeholder: "30",
+      defaultValue: 30,
+    },
+    {
+      id: "notes",
+      label: "Notes",
+      type: "textarea",
+      placeholder: "Internal notes for this node.",
+    },
+  ]);
+
+  return sections;
+};
+
 export default function ProjectsCanvas({ flowOptions, projectId }) {
   const { projects, updateProject } = useProjects();
   const activeProject =
@@ -447,20 +1018,27 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
       : "file"
   );
   const [projectIconColor, setProjectIconColor] = useState(
-    activeProject?.iconColor ?? "#ff8a3c"
+    activeProject?.iconColor ?? "#ffffff"
   );
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
+  const [viewport, setViewport] = useState({ zoom: 1 });
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [inventoryQuery, setInventoryQuery] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
   const [inventoryTooltip, setInventoryTooltip] = useState(null);
   const [isTooltipHovered, setIsTooltipHovered] = useState(false);
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(420);
   const hideTooltipTimer = useRef(null);
+  const didDragNodeRef = useRef(false);
+  const isResizingRef = useRef(false);
 
   const shortcutsRef = useRef(null);
   const saveRef = useRef(null);
   const iconRef = useRef(null);
   const inventoryRef = useRef(null);
+  const configRef = useRef(null);
   const saveTimerRef = useRef(null);
   const titleInputRef = useRef(null);
   const previousTitleRef = useRef(projectTitle);
@@ -479,6 +1057,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     }, 900);
   }, [autosaveEnabled]);
 
+  // Persist new edge connections and clear any transient menu/preview state.
   const onConnect = (connection) => {
     setEdges((eds) => addEdge(connection, eds));
     setConnectMenu(null);
@@ -492,6 +1071,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     setSelectedEdgeId(null);
   };
 
+  // Capture the source handle and enable the menu preview while dragging a connection.
   const handleConnectStart = (_, params) => {
     setSelectedEdgeId(null);
     if (params?.handleType === "source" && params.handleId) {
@@ -521,6 +1101,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     triggerSave();
   };
 
+  // Track pointer while dragging a connection to show a menu preview.
   useEffect(() => {
     if (!connectingLabel) return;
     const handleMove = (event) => {
@@ -709,7 +1290,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
       ? activeProject.icon.replace(/.*\/(.+)\.svg/, "$1")
       : "file";
     setProjectIcon(iconName);
-    setProjectIconColor(activeProject.iconColor ?? "#ff8a3c");
+    setProjectIconColor(activeProject.iconColor ?? "#ffffff");
   }, [projectId]);
 
   useEffect(() => {
@@ -764,6 +1345,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
         title: label,
         iconSrc: icon.url,
         meta: groupId.toUpperCase(),
+        isSource: groupId === "source",
         inputs: makePorts(inputs, "input", label),
         outputs: makePorts(outputs, "output", label),
       },
@@ -836,18 +1418,110 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     [getCompatibleNodes]
   );
 
+  const selectedNode = useMemo(
+    () => nodes.find((node) => node.id === selectedNodeId) ?? null,
+    [nodes, selectedNodeId]
+  );
+
+  const selectedNodeGroup = useMemo(() => {
+    if (!selectedNode?.data?.title) return null;
+    return getGroupForNode(selectedNode.data.title);
+  }, [selectedNode]);
+
+  const selectedConfigSections = useMemo(() => {
+    if (!selectedNode?.data?.title || !selectedNodeGroup) return [];
+    return buildConfigSections(selectedNode.data.title, selectedNodeGroup.id);
+  }, [selectedNode, selectedNodeGroup]);
+
+  const renderConfigField = (field) => {
+    if (field.type === "select") {
+      return (
+        <div className="rr-select-wrapper">
+          <select className="rr-select" defaultValue={field.defaultValue}>
+            {field.options.map((option) => (
+              <option key={`${field.id}-${option}`} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+    if (field.type === "textarea") {
+      return (
+        <textarea
+          className="rr-input rr-node-panel__textarea"
+          placeholder={field.placeholder}
+          defaultValue={field.defaultValue}
+          rows={3}
+        />
+      );
+    }
+    if (field.type === "checkbox") {
+      return (
+        <label className="rr-checkbox">
+          <input type="checkbox" defaultChecked={field.defaultChecked} />
+          <span>{field.label}</span>
+        </label>
+      );
+    }
+    if (field.type === "toggle") {
+      return (
+        <label className="rr-toggle">
+          <input type="checkbox" defaultChecked={field.defaultChecked} />
+          {field.label}
+        </label>
+      );
+    }
+    return (
+      <input
+        className="rr-input"
+        type={field.type === "number" ? "number" : "text"}
+        placeholder={field.placeholder}
+        defaultValue={field.defaultValue}
+      />
+    );
+  };
+
+  useEffect(() => {
+    const handleMove = (event) => {
+      if (!isResizingRef.current) return;
+      const nextWidth = Math.max(
+        320,
+        Math.min(560, window.innerWidth - event.clientX)
+      );
+      setPanelWidth(nextWidth);
+    };
+    const handleUp = () => {
+      if (!isResizingRef.current) return;
+      isResizingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, []);
+
+  // Create the next node from the connect menu and wire it to the source output.
   const handleSelectConnectNode = useCallback(
     (label) => {
     if (!connectMenu?.outputLabel || !connectMenu?.sourceNodeId) return;
     const outputLabel = connectMenu.outputLabel;
     const baseX = connectMenu.x ?? window.innerWidth * 0.5;
     const baseY = connectMenu.y ?? window.innerHeight * 0.5;
-    const position = reactFlowInstance
-      ? reactFlowInstance.project({
-          x: baseX + 220,
-          y: baseY - 60,
-        })
-      : { x: baseX + 220, y: baseY - 60 };
+    const menuNode = nodes.find((node) => node.id === "connect-menu");
+    const position = menuNode
+      ? { ...menuNode.position }
+      : reactFlowInstance
+        ? reactFlowInstance.project({
+            x: baseX + 220,
+            y: baseY - 60,
+          })
+        : { x: baseX + 220, y: baseY - 60 };
     const nodeId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const io = NODE_IO.get(label);
     const inputs = io?.inputs ?? [outputLabel];
@@ -884,9 +1558,10 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     setConnectingLabel(null);
     triggerSave();
     },
-    [connectMenu, reactFlowInstance, triggerSave]
+    [connectMenu, nodes, reactFlowInstance, triggerSave]
   );
 
+  // Data payload passed to the connect menu node. Keep this stable to avoid re-mounts.
   const connectMenuData = useMemo(
     () => ({
       categories: connectMenuCategories,
@@ -914,6 +1589,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     ]
   );
 
+  // Spawn (or update) the connect menu node on the canvas and keep its edge wired.
   useEffect(() => {
     if (!connectMenu?.open || connectMenu.x === null || connectMenu.y === null) {
       setNodes((prev) => prev.filter((node) => node.type !== "rrConnectMenu"));
@@ -1450,14 +2126,40 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
           setConnectMenu(null);
           setConnectingLabel(null);
           setConnectPreview(null);
+          setConfigOpen(false);
+          setSelectedNodeId(null);
         }}
-        onNodeClick={() => setSelectedEdgeId(null)}
+        onNodeClick={(_, node) => {
+          setSelectedEdgeId(null);
+          if (didDragNodeRef.current) {
+            didDragNodeRef.current = false;
+            return;
+          }
+          if (node.type !== "rrNode") {
+            return;
+          }
+          setSelectedNodeId(node.id);
+          setConfigOpen(true);
+          setInventoryOpen(false);
+        }}
+        onNodeDragStart={() => {
+          didDragNodeRef.current = false;
+        }}
+        onNodeDrag={() => {
+          didDragNodeRef.current = true;
+        }}
+        onNodeDragStop={() => {
+          window.setTimeout(() => {
+            didDragNodeRef.current = false;
+          }, 0);
+        }}
         fitView={options.fitView}
         minZoom={options.minZoom}
         maxZoom={options.maxZoom}
         nodesDraggable={!nodesLocked}
         nodesConnectable={!nodesLocked}
         onInit={setReactFlowInstance}
+        onMove={(_, nextViewport) => setViewport(nextViewport)}
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={24} size={1} color="rgba(255,255,255,0.08)" />
@@ -1468,12 +2170,100 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
           style={{
             top: connectPreview.y,
             left: connectPreview.x,
+            width: MENU_NODE_WIDTH * (viewport.zoom ?? 1),
+            height: MENU_NODE_HEIGHT * (viewport.zoom ?? 1),
+            transform: `translate(${MENU_OFFSET_X * (viewport.zoom ?? 1)}px, -50%)`,
           }}
         >
-          <span className="rr-connect-preview__label">
-            {connectingLabel}
-          </span>
+          <span className="rr-connect-preview__icon" aria-hidden="true" />
         </div>
+      )}
+      {selectedNode && (
+        <aside
+          ref={configRef}
+          className={`rr-node-panel ${configOpen ? "is-open" : ""}`}
+          style={{ width: `${panelWidth}px` }}
+        >
+          <button
+            type="button"
+            className="rr-node-panel__resize"
+            aria-label="Resize panel"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              isResizingRef.current = true;
+              document.body.style.cursor = "col-resize";
+              document.body.style.userSelect = "none";
+            }}
+          />
+          <div className="rr-node-panel__header">
+            <div className="rr-node-panel__title">
+              <div className="rr-node-panel__icon">
+                {selectedNode.data?.iconSrc ? (
+                  <img src={selectedNode.data.iconSrc} alt="" />
+                ) : (
+                  <span className="rr-node-panel__icon-fallback">
+                    {selectedNode.data?.title?.slice(0, 1)}
+                  </span>
+                )}
+              </div>
+              <div className="rr-node-panel__heading">
+                <span className="rr-node-panel__name">
+                  {selectedNode.data?.title}
+                </span>
+                <span className="rr-node-panel__meta">
+                  {selectedNodeGroup?.label ?? "Node"}
+                </span>
+              </div>
+            </div>
+            <div className="rr-node-panel__actions">
+              <button
+                type="button"
+                className="rr-node-panel__icon-button"
+                aria-label="Open docs"
+              >
+                <img src={iconUrl("book")} alt="" />
+              </button>
+              <button
+                type="button"
+                className="rr-node-panel__icon-button"
+                onClick={() => {
+                  setConfigOpen(false);
+                  setSelectedNodeId(null);
+                }}
+                aria-label="Close config"
+              >
+                <img src={iconUrl("close")} alt="" />
+              </button>
+            </div>
+          </div>
+          <div className="rr-node-panel__body">
+            <div className="rr-node-panel__summary">
+              {getNodeDescription(selectedNode.data?.title)}
+            </div>
+            {selectedConfigSections.map((section) => (
+              <div key={section.title} className="rr-node-panel__section">
+                <span className="rr-node-panel__section-title">
+                  {section.title}
+                </span>
+                <div className="rr-node-panel__section-content">
+                  {section.fields.map((field) => (
+                    <div key={field.id} className="rr-config-row">
+                      <div className="rr-config-row__label">
+                        <p className="rr-config-row__title">{field.label}</p>
+                        {field.helper && (
+                          <p className="rr-helper">{field.helper}</p>
+                        )}
+                      </div>
+                      <div className="rr-node-panel__control">
+                        {renderConfigField(field)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
       )}
     </div>
   );

@@ -38,7 +38,7 @@ const buildProject = (overrides) => ({
   id: overrides.id ?? `project-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
   name: overrides.name ?? "Untitled Project",
   icon: overrides.icon ?? getIconForKey(overrides.name ?? "Project").url,
-  iconColor: overrides.iconColor ?? "#ff8a3c",
+  iconColor: overrides.iconColor ?? "#ffffff",
   nodes: overrides.nodes ?? [],
   edges: overrides.edges ?? [],
   status: overrides.status ?? "Inactive",

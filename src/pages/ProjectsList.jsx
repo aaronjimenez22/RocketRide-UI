@@ -524,7 +524,7 @@ export default function ProjectsList({ onOpenProject, onCreateProject }) {
                       className="rr-projects__icon"
                       style={{
                         "--rr-icon-url": `url(${project.icon ?? iconUrl("file")})`,
-                        "--rr-icon-color": project.iconColor ?? "var(--color-accent-primary)",
+                        "--rr-icon-color": project.iconColor ?? "#ffffff",
                       }}
                     />
                     {project.name}

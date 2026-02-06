@@ -1,4 +1,5 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { iconUrl } from "../utils/iconLibrary";
 import { Handle, Position } from "reactflow";
 
 // Layout constants for the node card and connection rows.
@@ -105,6 +106,8 @@ function FlowNode({ id, data }) {
   const [titleHovered, setTitleHovered] = useState(false);
   const [hoveredPortId, setHoveredPortId] = useState(null);
   const [activePortId, setActivePortId] = useState(null);
+  const [runState, setRunState] = useState("idle");
+  const runTimerRef = useRef(null);
 
   // Menu remains visible when opened even if node hover leaves.
   const showMenu = isHovered || menuOpen;
@@ -112,6 +115,7 @@ function FlowNode({ id, data }) {
   const outputs = data.outputs ?? [];
   const connectedPorts = data.connectedPorts ?? new Set();
   const highlightInputLabel = data.highlightInputLabel;
+  const isSource = data.isSource || data.meta?.toLowerCase() === "source";
 
   const handleMenuAction = (action) => {
     console.log(`${action} clicked for node ${id}`);
@@ -135,6 +139,24 @@ function FlowNode({ id, data }) {
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (runTimerRef.current) {
+        clearTimeout(runTimerRef.current);
+      }
+    };
+  }, []);
+
+  const queueRunTransition = (nextState) => {
+    if (runTimerRef.current) {
+      clearTimeout(runTimerRef.current);
+    }
+    setRunState("loading");
+    runTimerRef.current = setTimeout(() => {
+      setRunState(nextState);
+    }, 5000);
+  };
+
   // CSS variables allow the layout to be tweaked in CSS.
   const styleVars = useMemo(
     () => ({
@@ -150,6 +172,7 @@ function FlowNode({ id, data }) {
       className={[
         "rr-flow-node",
         showMenu ? "is-hovered" : "",
+        isSource ? "is-source" : "",
         data.state ? `is-${data.state}` : "",
         // Enable to visualize hitbox/handle bounds for debugging alignment.
         data.debugHandles ? "is-debug" : "",
@@ -163,6 +186,42 @@ function FlowNode({ id, data }) {
         setHoveredPortId(null);
       }}
     >
+      {isSource && (
+        <button
+          type="button"
+          className={`rr-flow-node__run rr-flow-node__run--${runState} ${
+            runState === "idle" ? "rr-flow-node__run--idle" : ""
+          }`}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (runState === "loading") return;
+            if (runState === "idle") {
+              queueRunTransition("stopped");
+            } else {
+              queueRunTransition("idle");
+            }
+          }}
+          aria-label={runState === "stopped" ? "Stop pipeline" : "Run pipeline"}
+        >
+          <span className="rr-flow-node__run-icon" aria-hidden="true">
+            <span
+              className="rr-flow-node__run-glyph"
+              style={{
+                "--rr-run-icon-url": `url(${iconUrl(
+                  runState === "loading"
+                    ? "loader"
+                    : runState === "stopped"
+                      ? "pause"
+                      : "play"
+                )})`,
+              }}
+            />
+          </span>
+          <span className="rr-flow-node__run-text">
+            {runState === "stopped" ? "Stop" : "Run"}
+          </span>
+        </button>
+      )}
       {/* Top-right node menu */}
       <div className="rr-flow-node__menu">
         <button
@@ -261,27 +320,29 @@ function FlowNode({ id, data }) {
 
       {/* Ports are split into input (left) and output (right) columns */}
       <div className="rr-flow-node__ports">
-        <div className="rr-flow-node__ports-column">
-          {inputs.map((input) => (
-            <FlowPort
-              key={input.id}
-              nodeId={id}
-              port={input}
-              isHovered={hoveredPortId === input.id}
-              isAnyHovered={hoveredPortId !== null}
-              isActive={activePortId === input.id}
-              isConnected={connectedPorts.has(`${id}:${input.id}`)}
-              isEligible={
-                highlightInputLabel && highlightInputLabel === input.label
-              }
-              onHoverStart={() => setHoveredPortId(input.id)}
-              onHoverEnd={() => setHoveredPortId(null)}
-              onActivate={(portId) =>
-                setActivePortId((prev) => (prev === portId ? null : portId))
-              }
-            />
-          ))}
-        </div>
+        {!isSource && (
+          <div className="rr-flow-node__ports-column">
+            {inputs.map((input) => (
+              <FlowPort
+                key={input.id}
+                nodeId={id}
+                port={input}
+                isHovered={hoveredPortId === input.id}
+                isAnyHovered={hoveredPortId !== null}
+                isActive={activePortId === input.id}
+                isConnected={connectedPorts.has(`${id}:${input.id}`)}
+                isEligible={
+                  highlightInputLabel && highlightInputLabel === input.label
+                }
+                onHoverStart={() => setHoveredPortId(input.id)}
+                onHoverEnd={() => setHoveredPortId(null)}
+                onActivate={(portId) =>
+                  setActivePortId((prev) => (prev === portId ? null : portId))
+                }
+              />
+            ))}
+          </div>
+        )}
         <div className="rr-flow-node__ports-column">
           {outputs.map((output) => (
             <FlowPort
