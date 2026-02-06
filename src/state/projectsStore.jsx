@@ -48,6 +48,7 @@ const buildProject = (overrides) => ({
   description: overrides.description ?? "",
   dataProcessed: overrides.dataProcessed ?? "0 MB",
   filesUploaded: overrides.filesUploaded ?? 0,
+  pipelineRuns: overrides.pipelineRuns ?? [],
   lastRuns: overrides.lastRuns ?? makeRuns(),
 });
 
@@ -156,6 +157,7 @@ const seedProjects = () => {
       nodes,
       edges: [],
       icon: getIconForKey(project.name).url,
+      pipelineRuns: [],
     });
   });
 };
@@ -171,6 +173,10 @@ const loadProjects = () => {
       dateCreated: new Date(project.dateCreated),
       lastModified: new Date(project.lastModified),
       lastRuns: (project.lastRuns ?? []).map((run) => ({
+        ...run,
+        timestamp: new Date(run.timestamp),
+      })),
+      pipelineRuns: (project.pipelineRuns ?? []).map((run) => ({
         ...run,
         timestamp: new Date(run.timestamp),
       })),

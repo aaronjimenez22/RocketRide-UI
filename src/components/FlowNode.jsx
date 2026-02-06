@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { iconUrl } from "../utils/iconLibrary";
 import { Handle, Position } from "reactflow";
 
@@ -106,8 +106,7 @@ function FlowNode({ id, data }) {
   const [titleHovered, setTitleHovered] = useState(false);
   const [hoveredPortId, setHoveredPortId] = useState(null);
   const [activePortId, setActivePortId] = useState(null);
-  const [runState, setRunState] = useState("idle");
-  const runTimerRef = useRef(null);
+  const runState = data.runState ?? "idle";
 
   // Menu remains visible when opened even if node hover leaves.
   const showMenu = isHovered || menuOpen;
@@ -115,7 +114,8 @@ function FlowNode({ id, data }) {
   const outputs = data.outputs ?? [];
   const connectedPorts = data.connectedPorts ?? new Set();
   const highlightInputLabel = data.highlightInputLabel;
-  const isSource = data.isSource || data.meta?.toLowerCase() === "source";
+  const isSource =
+    data.isSource || data.meta?.toLowerCase() === "source" || inputs.length === 0;
 
   const handleMenuAction = (action) => {
     console.log(`${action} clicked for node ${id}`);
@@ -137,24 +137,6 @@ function FlowNode({ id, data }) {
       setEditedTitle(data.title);
       setIsEditingTitle(false);
     }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (runTimerRef.current) {
-        clearTimeout(runTimerRef.current);
-      }
-    };
-  }, []);
-
-  const queueRunTransition = (nextState) => {
-    if (runTimerRef.current) {
-      clearTimeout(runTimerRef.current);
-    }
-    setRunState("loading");
-    runTimerRef.current = setTimeout(() => {
-      setRunState(nextState);
-    }, 5000);
   };
 
   // CSS variables allow the layout to be tweaked in CSS.
@@ -194,12 +176,7 @@ function FlowNode({ id, data }) {
           }`}
           onClick={(event) => {
             event.stopPropagation();
-            if (runState === "loading") return;
-            if (runState === "idle") {
-              queueRunTransition("stopped");
-            } else {
-              queueRunTransition("idle");
-            }
+            data.onRun?.(id);
           }}
           aria-label={runState === "stopped" ? "Stop pipeline" : "Run pipeline"}
         >

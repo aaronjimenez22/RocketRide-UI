@@ -24,17 +24,32 @@ export default function FlowEdge({
   });
 
   const isActive = data?.isHovered || data?.isSelected;
+  const isPipelineEdge = data?.isPipelineEdge;
+  const isPipelineStep = data?.isPipelineStep;
+  const isLocked = data?.isLocked;
 
   return (
     <>
       <path
         id={id}
-        className={isActive ? "rr-flow-edge-path is-active" : "rr-flow-edge-path"}
+        className={[
+          "rr-flow-edge-path",
+          isActive ? "is-active" : "",
+          isPipelineEdge ? "is-pipeline" : "",
+          isPipelineStep ? "is-streaming" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         d={edgePath}
         markerEnd={markerEnd}
       />
+      {isPipelineStep && (
+        <circle r="4" className="rr-flow-edge__dot">
+          <animateMotion dur="0.9s" repeatCount="indefinite" path={edgePath} />
+        </circle>
+      )}
       <EdgeLabelRenderer>
-        {(data?.isHovered || data?.isSelected) && (
+        {(data?.isHovered || data?.isSelected) && !isLocked && (
           <div
             className="rr-flow-edge__actions"
             style={{
