@@ -2272,6 +2272,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
       </div>
       {viewMode === "pipeline" ? (
         <>
+          {/* Pipeline builder view: inventory, canvas, and node config panel. */}
           <aside
             ref={inventoryRef}
             className={`rr-node-inventory ${inventoryOpen ? "is-open" : ""}`}
@@ -2536,6 +2537,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
           )}
         </>
       ) : (
+        // Analytics view: summarizes simulated run performance once pipelines execute.
         <section className="rr-analytics">
           {pipelineRuns.length === 0 ? (
             <div className="rr-analytics__empty">

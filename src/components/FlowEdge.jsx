@@ -36,7 +36,6 @@ export default function FlowEdge({
           "rr-flow-edge-path",
           isActive ? "is-active" : "",
           isPipelineEdge ? "is-pipeline" : "",
-          isPipelineStep ? "is-streaming" : "",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -44,9 +43,12 @@ export default function FlowEdge({
         markerEnd={markerEnd}
       />
       {isPipelineStep && (
-        <circle r="4" className="rr-flow-edge__dot">
-          <animateMotion dur="0.9s" repeatCount="indefinite" path={edgePath} />
-        </circle>
+        // Streaming overlay uses a dash animation to mimic light traveling.
+        <path
+          className="rr-flow-edge-path rr-flow-edge-path--stream"
+          d={edgePath}
+          markerEnd={markerEnd}
+        />
       )}
       <EdgeLabelRenderer>
         {(data?.isHovered || data?.isSelected) && !isLocked && (
