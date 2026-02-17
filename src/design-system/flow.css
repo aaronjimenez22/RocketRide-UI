@@ -336,16 +336,16 @@
   min-height: var(--rr-node-port-row-height);
   display: flex;
   align-items: center;
-  gap: 5px; /* label <-> anchor spacing */
+  gap: 2px; /* label <-> anchor spacing */
   position: relative;
 }
 
 .rr-flow-port--input {
-  margin-left: -65px; /* pull input ports outward */
+  margin-left: -40px; /* pull input ports outward */
 }
 
 .rr-flow-port--output {
-  margin-right: -65px; /* pull output ports outward */
+  margin-right: -40px; /* pull output ports outward */
   justify-content: flex-end; /* labels align to the right */
 }
 
@@ -379,8 +379,8 @@
 .rr-flow-node__run {
   position: absolute;
   right: calc(100% - 0px);
-  top: 50%;
-  transform: translateY(-50%);
+  top: 14px;
+  transform: none;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -485,7 +485,7 @@
   height: var(--rr-port-dot-size, 32px);
   border-radius: 8px;
   border: 2px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-node);
   display: grid;
   place-items: center;
   transition: transform var(--transition-fast), border-color var(--transition-fast),
