@@ -1,118 +1,137 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import logoMark from "../assets/rocketridev1.svg";
+import { iconUrl, getIconForKey } from "../utils/iconLibrary";
+import { useProjects } from "../state/projectsStore.jsx";
 
-/**
- * SIDEBAR NAVIGATION COMPONENT
- * 
- * This component provides a collapsible sidebar navigation menu with the following features:
- * - Main navigation items (top section)
- * - Footer items (middle section)
- * - Utility items with popovers (bottom section)
- * - Theme selector with popover
- * - User profile section
- * - Tooltips when collapsed
- * - Responsive collapse/expand functionality
- * 
- * STRUCTURE:
- * 1. Top: Logo + Brand text + Toggle button
- * 2. Nav: Main navigation items (Home, Projects, etc.)
- * 3. Footer: 
- *    - Section divider
- *    - Footer items (Feedback, Changelog)
- *    - Utility items (Help with popover, API Keys)
- *    - Theme selector with popover
- *    - Section divider
- *    - User profile with popover
- * 
- * HOW TO ADD NEW NAVIGATION ITEMS:
- * 
- * 1. Add a new icon to the icons object:
- *    const icons = {
- *      ...existing icons,
- *      newItem: iconUrl("icon-name"), // Use pixelarticons icon name
- *    };
- * 
- * 2. Add item to appropriate array:
- *    - navItems: Main navigation (top section)
- *    - footerItems: Footer section items
- *    - utilityItems: Utility section items
- * 
- * 3. Item format:
- *    { id: "unique-id", label: "Display Name", icon: icons.iconName }
- * 
- * 4. The item will automatically:
- *    - Show icon and label when expanded
- *    - Show tooltip on hover when collapsed
- *    - Handle active state based on activeView prop
- *    - Navigate via onNavigate callback
- * 
- * HOW TO ADD A POPOVER (like Help or Theme):
- * 
- * 1. Add state: const [popoverOpen, setPopoverOpen] = useState(false);
- * 2. Add ref: const popoverRef = useRef(null);
- * 3. Add to click handler in useEffect
- * 4. Wrap item in container with ref
- * 5. Add conditional popover div with className "rr-sidebar__popover"
- * 
- * See the Help section (lines 174-208) or Theme section (lines 237-288) for examples.
- */
+const buildTemplateNodes = (labels) =>
+  labels.map((label, index) => ({
+    id: `template-${label}-${index}`,
+    position: { x: 120 + (index % 3) * 220, y: 120 + Math.floor(index / 3) * 160 },
+    type: "rrNode",
+    data: {
+      title: label,
+      iconSrc: getIconForKey(label).url,
+      meta: "STEP",
+      inputs: index === 0 ? [] : [{ id: "in", label: "In", type: "input" }],
+      outputs: [{ id: "out", label: "Out", type: "output" }],
+    },
+  }));
 
-// Icon URL helper - generates URLs for pixelarticons library
-const iconUrl = (name) =>
-  `https://unpkg.com/pixelarticons@1.8.0/svg/${name}.svg`;
+const templateCategories = [
+  "Recommended",
+  "Chatbots",
+  "Content & Media",
+  "Data Analysis",
+  "Knowledge Retrieval",
+];
 
-// Icon definitions - add new icons here as needed
-// Available icons: https://pixelarticons.com/
-const icons = {
-  collapse: iconUrl("chevron-left"),
-  expand: iconUrl("chevron-right"),
-  home: iconUrl("home"),
-  project: iconUrl("file"),
-  feedback: iconUrl("chat"),
-  changelog: iconUrl("list"),
-  help: iconUrl("info-box"),
-  keys: iconUrl("code"),
-  user: iconUrl("user"),
-  palette: iconUrl("paint-bucket"),
+const templateLibrary = [
+  {
+    id: "legal-chatbot",
+    title: "Legal Chatbot",
+    category: "Recommended",
+    description:
+      "Capture, summarize, and answer legal questions with a controlled RAG stack.",
+    nodes: ["text", "folder", "link", "openai", "share", "database"],
+  },
+  {
+    id: "pii-identifier",
+    title: "PII Identifier",
+    category: "Recommended",
+    description:
+      "Scan inbound docs and highlight sensitive content with alerts and redaction.",
+    nodes: ["clipboard", "mail", "share", "database", "openai", "folder"],
+  },
+  {
+    id: "support-chat",
+    title: "Support Triage Bot",
+    category: "Chatbots",
+    description:
+      "Route support tickets, craft summaries, and generate response drafts.",
+    nodes: ["mail", "clipboard", "openai", "link", "database"],
+  },
+  {
+    id: "marketing-digest",
+    title: "Marketing Digest",
+    category: "Content & Media",
+    description:
+      "Collect brand signals and compile a weekly newsletter summary.",
+    nodes: ["link", "folder", "openai", "mail", "share"],
+  },
+  {
+    id: "sales-insights",
+    title: "Sales Insights",
+    category: "Data Analysis",
+    description:
+      "Aggregate CRM exports, annotate trends, and deliver action items.",
+    nodes: ["database", "clipboard", "openai", "share"],
+  },
+  {
+    id: "knowledge-base",
+    title: "Knowledge Base Builder",
+    category: "Knowledge Retrieval",
+    description:
+      "Ingest docs, build embeddings, and ship a searchable knowledge base.",
+    nodes: ["folder", "database", "openai", "share", "clipboard"],
+  },
+];
+
+const statusOrder = {
+  Running: 0,
+  Inactive: 1,
 };
 
-// MAIN NAVIGATION ITEMS
-// These appear in the top section of the sidebar
-// Format: { id: "route-id", label: "Display Name", icon: icons.iconName }
-// The id should match the route/view identifier passed to onNavigate
-const navItems = [
-  { id: "home", label: "Home", icon: icons.home },
-  { id: "projects", label: "Projects", icon: icons.project },
+const sortOptions = [
+  { id: "manual", label: "Manual (Recent Open)" },
+  {
+    id: "updated-desc",
+    label: "Updated (Newest)",
+    compare: (a, b) => b.lastModified.getTime() - a.lastModified.getTime(),
+  },
+  {
+    id: "created-desc",
+    label: "Created (Newest)",
+    compare: (a, b) => b.dateCreated.getTime() - a.dateCreated.getTime(),
+  },
+  {
+    id: "name-asc",
+    label: "Name (A-Z)",
+    compare: (a, b) => a.name.localeCompare(b.name),
+  },
+  {
+    id: "name-desc",
+    label: "Name (Z-A)",
+    compare: (a, b) => b.name.localeCompare(a.name),
+  },
+  {
+    id: "cost-desc",
+    label: "Cost (Highest)",
+    compare: (a, b) => b.cost - a.cost,
+  },
+  {
+    id: "status",
+    label: "Status",
+    compare: (a, b) => statusOrder[a.status] - statusOrder[b.status],
+  },
 ];
 
-// FOOTER ITEMS
-// These appear in the middle footer section (below main nav, above utilities)
-// Same format as navItems
-const footerItems = [
-  { id: "feedback", label: "Feedback", icon: icons.feedback },
-  { id: "changelog", label: "Changelog", icon: icons.changelog },
-];
+const isSourceNode = (node) => {
+  const meta = String(node?.data?.meta ?? "").toUpperCase();
+  if (meta === "SOURCE") return true;
+  const inputs = node?.data?.inputs ?? [];
+  const outputs = node?.data?.outputs ?? [];
+  return inputs.length === 0 && outputs.length > 0;
+};
 
-// UTILITY ITEMS
-// These appear in the utility section (below footer items)
-// Note: "help" is handled separately with a popover, so it's filtered out here
-const utilityItems = [
-  { id: "help", label: "Help", icon: icons.help },
-  { id: "api-keys", label: "API Keys", icon: icons.keys },
-];
+const NodeChip = ({ type, index, total }) => {
+  const iconData = getIconForKey(type);
+  return (
+    <span className="rr-node-chip" style={{ zIndex: total - index }}>
+      <img src={iconData.url} alt={type} />
+    </span>
+  );
+};
 
-/**
- * Sidebar Component
- * 
- * @param {string} activeView - The currently active view/route identifier
- * @param {function} onNavigate - Callback function called when navigation items are clicked
- *                                Receives the item id as parameter: onNavigate(itemId)
- * @param {string} theme - Current theme identifier
- * @param {function} onThemeChange - Callback function called when theme is changed
- *                                   Receives the theme id as parameter: onThemeChange(themeId)
- * @param {Array} themeOptions - Available theme options (base + custom)
- * @param {function} onCreateTheme - Callback when user wants to create a new theme
- */
 export default function Sidebar({
   activeView,
   onNavigate,
@@ -121,240 +140,512 @@ export default function Sidebar({
   themeOptions = [],
   onCreateTheme,
 }) {
-  // STATE MANAGEMENT
-  
-  // Collapsed state - controls whether sidebar is collapsed (icons only) or expanded (full width)
+  const {
+    projects,
+    activeProjectId,
+    setActiveProjectId,
+    updateProject,
+    createProject,
+    deleteProject,
+    duplicateProject,
+  } = useProjects();
+
   const [collapsed, setCollapsed] = useState(false);
-  
-  // Popover states - control visibility of dropdown menus
-  const [helpOpen, setHelpOpen] = useState(false);      // Help popover (Design System link)
-  const [profileOpen, setProfileOpen] = useState(false); // User profile popover
-  const [themeOpen, setThemeOpen] = useState(false);    // Theme selector popover
-  
-  // Tooltip state - tracks which item is hovered when collapsed (for tooltip display)
-  const [hoveredItem, setHoveredItem] = useState(null); // Set to item.id when hovered
-  
-  // Refs for popover containers - used to detect clicks outside to close popovers
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
+  const [sortMode, setSortMode] = useState("manual");
+  const [projectMenuOpenId, setProjectMenuOpenId] = useState(null);
+  const [collapsedProjectIds, setCollapsedProjectIds] = useState(() => new Set());
+  const [createOpen, setCreateOpen] = useState(false);
+  const [templateQuery, setTemplateQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("Recommended");
+  const [sourceRunStates, setSourceRunStates] = useState({});
+  const [sidebarWidth, setSidebarWidth] = useState(240);
+  const [projectOrder, setProjectOrder] = useState(() =>
+    projects.map((project) => project.id)
+  );
+
   const helpRef = useRef(null);
   const profileRef = useRef(null);
   const themeRef = useRef(null);
-  
-  // Resolve active view - handles special case where "project-canvas" should highlight "projects"
-  const resolvedActive =
-    activeView === "project-canvas" ? "projects" : activeView;
-  
-  // Find current active theme object for display
-  const activeTheme = themeOptions.find((option) => option.id === theme);
-  
-  /**
-   * Get user initials from name
-   * Extracts first letter of first name + first letter of last name
-   * Falls back to first 2 characters if only one name provided
-   * 
-   * TODO: Replace hardcoded "User Name" with actual user data from props/context
-   */
-  const getUserInitials = () => {
-    const userName = "User Name"; // This could come from props or context
-    const parts = userName.split(" ");
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return userName.substring(0, 2).toUpperCase();
-  };
+  const sortRef = useRef(null);
+  const projectMenuRefs = useRef({});
+  const runTimersRef = useRef({});
+  const isResizingRef = useRef(false);
 
-  /**
-   * CLICK OUTSIDE HANDLER
-   * Closes popovers when clicking outside their containers
-   * 
-   * This effect:
-   * 1. Listens for mousedown events on the document
-   * 2. Checks if the click was inside any popover container (using refs)
-   * 3. If click was outside, closes all popovers
-   * 
-   * To add a new popover:
-   * 1. Add a ref: const newPopoverRef = useRef(null);
-   * 2. Add ref to container: <div ref={newPopoverRef}>
-   * 3. Add check: const clickedNew = newPopoverRef.current?.contains(event.target);
-   * 4. Add to condition: if (clickedHelp || clickedProfile || clickedTheme || clickedNew)
-   * 5. Add to close: setNewPopoverOpen(false);
-   */
+  const activeTheme = themeOptions.find((option) => option.id === theme);
+
   useEffect(() => {
     const handleClick = (event) => {
       const clickedHelp = helpRef.current?.contains(event.target);
       const clickedProfile = profileRef.current?.contains(event.target);
       const clickedTheme = themeRef.current?.contains(event.target);
+      const clickedSort = sortRef.current?.contains(event.target);
+      const clickedProjectMenu = Object.values(projectMenuRefs.current).some((ref) =>
+        ref?.contains(event.target)
+      );
 
-      if (clickedHelp || clickedProfile || clickedTheme) {
+      if (
+        clickedHelp ||
+        clickedProfile ||
+        clickedTheme ||
+        clickedSort ||
+        clickedProjectMenu
+      ) {
         return;
       }
+
       setHelpOpen(false);
       setProfileOpen(false);
       setThemeOpen(false);
+      setSortOpen(false);
+      setProjectMenuOpenId(null);
     };
 
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  return (
-    <aside className={`rr-sidebar ${collapsed ? "is-collapsed" : ""}`}>
-      {/* TOP SECTION: Logo + Brand + Toggle Button */}
-      <div className="rr-sidebar__top">
-        <div className="rr-sidebar__brand">
-          {/* Logo wrapper - provides frame when collapsed (46px × 46px) */}
-          <div className="rr-sidebar__logo-wrapper">
-            <img src={logoMark} alt="RocketRide" className="rr-sidebar__logo" />
-          </div>
-          {/* Brand text - hidden when collapsed */}
-          <span className="rr-sidebar__brand-text">RocketRide</span>
-        </div>
-        {/* Toggle button - collapses/expands sidebar */}
-        {/* When collapsed, this button appears centered on logo on hover */}
-        <button
-          className="rr-icon-button rr-sidebar__toggle"
-          type="button"
-          onClick={() => setCollapsed((value) => !value)}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          <span
-            className="rr-icon-image"
-            style={{
-              "--rr-icon-url": `url(${collapsed ? icons.expand : icons.collapse})`,
-            }}
-            aria-hidden="true"
-          />
-        </button>
-      </div>
+  useEffect(() => {
+    return () => {
+      Object.values(runTimersRef.current).forEach((timer) => {
+        if (timer) clearTimeout(timer);
+      });
+    };
+  }, []);
 
-      {/* MAIN NAVIGATION SECTION */}
-      {/* 
-        This section renders the main navigation items (Home, Projects, etc.)
-        
-        STRUCTURE:
-        - Each item is wrapped in rr-sidebar__item-wrapper for tooltip positioning
-        - Button has rr-sidebar__item class + "is-active" when active
-        - Icon and label are inside the button
-        - Tooltip appears when collapsed and item is hovered
-        
-        TO ADD A NEW NAV ITEM:
-        1. Add to navItems array at top of file
-        2. Item will automatically render here with all functionality
-      */}
-      <nav className="rr-sidebar__nav">
-        {navItems.map((item) => (
-          <div
-            key={item.id}
-            className="rr-sidebar__item-wrapper"
-            // Tooltip hover handlers - only active when collapsed
-            onMouseEnter={() => collapsed && setHoveredItem(item.id)}
-            onMouseLeave={() => setHoveredItem(null)}
+  useEffect(() => {
+    setProjectOrder((prev) => {
+      const valid = prev.filter((id) => projects.some((project) => project.id === id));
+      const additions = projects
+        .map((project) => project.id)
+        .filter((id) => !valid.includes(id));
+      return [...additions, ...valid];
+    });
+  }, [projects]);
+
+  useEffect(() => {
+    const handleMove = (event) => {
+      if (!isResizingRef.current) return;
+      const nextWidth = Math.min(500, Math.max(120, event.clientX));
+
+      if (nextWidth < 240) {
+        setCollapsed(true);
+        isResizingRef.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        return;
+      }
+
+      setCollapsed(false);
+      setSidebarWidth(nextWidth);
+    };
+
+    const handleUp = () => {
+      if (!isResizingRef.current) return;
+      isResizingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!createOpen) return;
+
+    const handleKey = (event) => {
+      if (event.key === "Escape") setCreateOpen(false);
+    };
+
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [createOpen]);
+
+  const filteredTemplates = useMemo(() => {
+    const query = templateQuery.trim().toLowerCase();
+    const pool = query
+      ? templateLibrary
+      : templateLibrary.filter((template) =>
+          activeCategory === "Recommended"
+            ? template.category === "Recommended"
+            : template.category === activeCategory
+        );
+
+    if (!query) return pool;
+
+    return pool.filter((template) => {
+      const text = `${template.title} ${template.description}`.toLowerCase();
+      return text.includes(query);
+    });
+  }, [templateQuery, activeCategory]);
+
+  const sortedProjects = useMemo(() => {
+    if (sortMode === "manual") {
+      const lookup = new Map(projects.map((project) => [project.id, project]));
+      return projectOrder.map((id) => lookup.get(id)).filter(Boolean);
+    }
+
+    const activeSort = sortOptions.find((option) => option.id === sortMode);
+    if (!activeSort?.compare) return projects;
+    return [...projects].sort(activeSort.compare);
+  }, [projects, sortMode, projectOrder]);
+
+  const openProject = (projectId) => {
+    setActiveProjectId(projectId);
+    onNavigate("project-canvas");
+    setProjectMenuOpenId(null);
+
+    if (sortMode === "manual") {
+      setProjectOrder((prev) => [projectId, ...prev.filter((id) => id !== projectId)]);
+    }
+  };
+
+  const toggleProjectCollapse = (projectId) => {
+    setCollapsedProjectIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) next.delete(projectId);
+      else next.add(projectId);
+      return next;
+    });
+  };
+
+  const handleRenameProject = (project) => {
+    const nextName = window.prompt("Rename project", project.name);
+    if (!nextName || !nextName.trim()) return;
+    updateProject(project.id, { name: nextName.trim() });
+    setProjectMenuOpenId(null);
+  };
+
+  const handleCreateProject = (data) => {
+    const projectId = createProject(data);
+    setCreateOpen(false);
+    setTemplateQuery("");
+    setActiveCategory("Recommended");
+    openProject(projectId);
+  };
+
+  const toggleSourceRun = (projectId, sourceNodeId) => {
+    const key = `${projectId}:${sourceNodeId}`;
+    const currentState = sourceRunStates[key] ?? "idle";
+
+    if (currentState === "loading") {
+      if (runTimersRef.current[key]) {
+        clearTimeout(runTimersRef.current[key]);
+        runTimersRef.current[key] = null;
+      }
+      setSourceRunStates((prev) => ({ ...prev, [key]: "idle" }));
+      return;
+    }
+
+    setSourceRunStates((prev) => ({ ...prev, [key]: "loading" }));
+
+    if (runTimersRef.current[key]) clearTimeout(runTimersRef.current[key]);
+    runTimersRef.current[key] = setTimeout(() => {
+      setSourceRunStates((prev) => ({ ...prev, [key]: "idle" }));
+      runTimersRef.current[key] = null;
+    }, 5000);
+  };
+
+  return (
+    <>
+      <aside
+        className={`rr-sidebar ${collapsed ? "is-collapsed" : ""}`}
+        style={collapsed ? undefined : { width: `${sidebarWidth}px` }}
+      >
+        <div className="rr-sidebar__top">
+          <div className="rr-sidebar__brand">
+            <div className="rr-sidebar__logo-wrapper">
+              <img src={logoMark} alt="RocketRide" className="rr-sidebar__logo" />
+            </div>
+            <span className="rr-sidebar__brand-text">RocketRide</span>
+          </div>
+          <button
+            className="rr-icon-button rr-sidebar__toggle"
+            type="button"
+            onClick={() => {
+              setCollapsed((value) => {
+                const next = !value;
+                if (!next && sidebarWidth < 240) {
+                  setSidebarWidth(240);
+                }
+                return next;
+              });
+            }}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
+            <span
+              className="rr-icon-image"
+              style={{
+                "--rr-icon-url": `url(${iconUrl(
+                  collapsed ? "chevron-right" : "chevron-left"
+                )})`,
+              }}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
+
+        <div className="rr-sidebar__projects-shell">
+          <button
+            type="button"
+            className="rr-button rr-button--ghost rr-sidebar__new-project"
+            onClick={() => setCreateOpen(true)}
+          >
+            <img src={iconUrl("add-box")} alt="" />
+            <span>New Project</span>
+          </button>
+
+          <div className="rr-sidebar-projects-header">
+            <h3>Projects</h3>
+            <div className="rr-sidebar-projects-sort" ref={sortRef}>
+              <button
+                type="button"
+                className="rr-icon-button rr-sidebar-projects-sort__trigger"
+                onClick={() => setSortOpen((value) => !value)}
+                aria-label="Sort projects"
+              >
+                <span
+                  className="rr-icon-image"
+                  style={{ "--rr-icon-url": `url(${iconUrl("sort-alphabetic")})` }}
+                  aria-hidden="true"
+                />
+              </button>
+              {sortOpen && (
+                <div className="rr-sidebar-projects-sort__menu">
+                  {sortOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`rr-sidebar-projects-sort__item ${
+                        sortMode === option.id ? "is-active" : ""
+                      }`}
+                      onClick={() => {
+                        setSortMode(option.id);
+                        setSortOpen(false);
+                      }}
+                    >
+                      <span>{option.label}</span>
+                      {sortMode === option.id && <img src={iconUrl("check")} alt="" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rr-sidebar-projects-list">
+            {sortedProjects.map((project) => {
+              const sourceNodes = (project.nodes ?? []).filter(isSourceNode);
+              const projectCollapsed = collapsedProjectIds.has(project.id);
+              return (
+                <div
+                  key={project.id}
+                  className={`rr-sidebar-project ${
+                    activeProjectId === project.id && activeView === "project-canvas"
+                      ? "is-active"
+                      : ""
+                  }`}
+                >
+                  <div className="rr-sidebar-project__row">
+                    <button
+                      type="button"
+                      className="rr-sidebar-project__collapse"
+                      onClick={() => toggleProjectCollapse(project.id)}
+                      aria-label={projectCollapsed ? "Expand sources" : "Collapse sources"}
+                    >
+                      <span
+                        className="rr-sidebar-project__icon"
+                        style={{
+                          "--rr-icon-url": `url(${project.icon ?? iconUrl("file")})`,
+                          "--rr-icon-color": project.iconColor ?? "#ffffff",
+                        }}
+                      />
+                      <span className="rr-sidebar-project__chevron">
+                        <img
+                          src={iconUrl(projectCollapsed ? "chevron-right" : "chevron-down")}
+                          alt=""
+                        />
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="rr-sidebar-project__main"
+                      onClick={() => openProject(project.id)}
+                    >
+                      {project.name}
+                    </button>
+
+                    <div
+                      className="rr-sidebar-project__menu-wrap"
+                      ref={(ref) => {
+                        projectMenuRefs.current[project.id] = ref;
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="rr-sidebar-project__menu-trigger"
+                        onClick={() =>
+                          setProjectMenuOpenId((prev) =>
+                            prev === project.id ? null : project.id
+                          )
+                        }
+                        aria-label="Project actions"
+                      >
+                        <img src={iconUrl("more-vertical")} alt="" />
+                      </button>
+                      {projectMenuOpenId === project.id && (
+                        <div className="rr-sidebar-project__menu">
+                          <button type="button" onClick={() => openProject(project.id)}>
+                            Open
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              duplicateProject(project.id);
+                              setProjectMenuOpenId(null);
+                            }}
+                          >
+                            Duplicate
+                          </button>
+                          <button type="button" onClick={() => handleRenameProject(project)}>
+                            Rename
+                          </button>
+                          <button
+                            type="button"
+                            className="is-danger"
+                            onClick={() => {
+                              deleteProject(project.id);
+                              setProjectMenuOpenId(null);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {!projectCollapsed && sourceNodes.length > 0 && (
+                    <div className="rr-sidebar-source-list">
+                      {sourceNodes.map((node) => {
+                        const key = `${project.id}:${node.id}`;
+                        const runState = sourceRunStates[key] ?? "idle";
+                        return (
+                          <div
+                            key={node.id}
+                            className="rr-sidebar-source"
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => openProject(project.id)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                openProject(project.id);
+                              }
+                            }}
+                          >
+                            <span className="rr-sidebar-source__label">
+                              {node.data?.iconSrc && (
+                                <img
+                                  src={node.data.iconSrc}
+                                  alt=""
+                                  className="rr-sidebar-source__icon"
+                                />
+                              )}
+                              <span className="rr-sidebar-source__title">
+                                {node.data?.title ?? "Source"}
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              className={`rr-sidebar-source__run ${
+                                runState === "loading" ? "is-running" : ""
+                              }`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleSourceRun(project.id, node.id);
+                              }}
+                              aria-label={
+                                runState === "loading" ? "Pause source" : "Run source"
+                              }
+                            >
+                              <span
+                                className="rr-sidebar-source__run-glyph"
+                                style={{
+                                  "--rr-run-icon-url": `url(${iconUrl(
+                                    runState === "loading" ? "pause" : "play"
+                                  )})`,
+                                }}
+                              />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {sortedProjects.length === 0 && <div className="rr-empty">No projects yet.</div>}
+          </div>
+        </div>
+
+        <div className="rr-sidebar__footer">
+          <div className="rr-sidebar__section-divider" />
+          <button
+            type="button"
+            className="rr-sidebar__item"
+            onClick={() => onNavigate("feedback")}
+          >
+            <span className="rr-icon">
+              <span
+                className="rr-icon-image"
+                style={{ "--rr-icon-url": `url(${iconUrl("chat")})` }}
+                aria-hidden="true"
+              />
+            </span>
+            <span className="rr-sidebar__item-label">Feedback</span>
+          </button>
+          <button
+            type="button"
+            className="rr-sidebar__item"
+            onClick={() => onNavigate("changelog")}
+          >
+            <span className="rr-icon">
+              <span
+                className="rr-icon-image"
+                style={{ "--rr-icon-url": `url(${iconUrl("list")})` }}
+                aria-hidden="true"
+              />
+            </span>
+            <span className="rr-sidebar__item-label">Changelog</span>
+          </button>
+
+          <div className="rr-sidebar__help" ref={helpRef}>
             <button
               type="button"
-              className={`rr-sidebar__item ${
-                resolvedActive === item.id ? "is-active" : ""
-              }`}
-              onClick={() => onNavigate(item.id)}
+              className="rr-sidebar__item"
+              onClick={() => setHelpOpen((value) => !value)}
             >
               <span className="rr-icon">
                 <span
                   className="rr-icon-image"
-                  style={{ "--rr-icon-url": `url(${item.icon})` }}
+                  style={{ "--rr-icon-url": `url(${iconUrl("info-box")})` }}
                   aria-hidden="true"
                 />
               </span>
-              <span className="rr-sidebar__item-label">{item.label}</span>
+              <span className="rr-sidebar__item-label">Help</span>
             </button>
-            {/* Tooltip - shows label when collapsed and hovered */}
-            {collapsed && hoveredItem === item.id && (
-              <div className="rr-sidebar__tooltip">{item.label}</div>
-            )}
-          </div>
-        ))}
-      </nav>
-
-      {/* FOOTER SECTION: Footer items, utilities, theme, user */}
-      <div className="rr-sidebar__footer">
-        <div className="rr-sidebar__section-divider" />
-        
-        {/* FOOTER ITEMS GROUP */}
-        {/* 
-          Footer items (Feedback, Changelog, etc.)
-          Same structure as nav items - simple navigation buttons
-        */}
-        <div className="rr-sidebar__group">
-          {footerItems.map((item) => (
-            <div
-              key={item.id}
-              className="rr-sidebar__item-wrapper"
-              onMouseEnter={() => collapsed && setHoveredItem(item.id)}
-              onMouseLeave={() => setHoveredItem(null)}
-            >
-              <button
-                type="button"
-                className={`rr-sidebar__item ${
-                  resolvedActive === item.id ? "is-active" : ""
-                }`}
-                onClick={() => onNavigate(item.id)}
-              >
-                <span className="rr-icon">
-                  <span
-                    className="rr-icon-image"
-                    style={{ "--rr-icon-url": `url(${item.icon})` }}
-                    aria-hidden="true"
-                  />
-                </span>
-                <span className="rr-sidebar__item-label">{item.label}</span>
-              </button>
-              {collapsed && hoveredItem === item.id && (
-                <div className="rr-sidebar__tooltip">{item.label}</div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* UTILITY ITEMS GROUP */}
-        {/* 
-          Utility items with special behaviors:
-          - Help: Has a popover dropdown (see below)
-          - Other utilities: Simple navigation items
-          
-          Note: Help is filtered out from utilityItems because it's handled separately
-        */}
-        <div className="rr-sidebar__group">
-          {/* HELP ITEM WITH POPOVER */}
-          {/* 
-            Example of how to add a popover to a sidebar item:
-            1. Wrap in container with ref for click-outside detection
-            2. Button toggles popover state
-            3. Conditional render of popover div
-            4. Popover contains action items
-          */}
-          <div className="rr-sidebar__help" ref={helpRef}>
-            <div
-              className="rr-sidebar__item-wrapper"
-              onMouseEnter={() => collapsed && setHoveredItem("help")}
-              onMouseLeave={() => setHoveredItem(null)}
-            >
-              <button
-                type="button"
-                className="rr-sidebar__item"
-                onClick={() => setHelpOpen((value) => !value)}
-              >
-                <span className="rr-icon">
-                  <span
-                    className="rr-icon-image"
-                    style={{ "--rr-icon-url": `url(${icons.help})` }}
-                    aria-hidden="true"
-                  />
-                </span>
-                <span className="rr-sidebar__item-label">Help</span>
-              </button>
-              {collapsed && hoveredItem === "help" && (
-                <div className="rr-sidebar__tooltip">Help</div>
-              )}
-            </div>
-            {/* Popover dropdown - appears when helpOpen is true */}
             {helpOpen && (
               <div className="rr-sidebar__popover">
                 <button
@@ -367,174 +658,242 @@ export default function Sidebar({
                 >
                   Design System
                 </button>
-                {/* Add more popover items here as needed */}
               </div>
             )}
           </div>
-          
-          {/* OTHER UTILITY ITEMS */}
-          {/* 
-            Renders utility items except "help" (which is handled above)
-            These are simple navigation items without popovers
-          */}
-          {utilityItems
-            .filter((item) => item.id !== "help")
-            .map((item) => (
-              <div
-                key={item.id}
-                className="rr-sidebar__item-wrapper"
-                onMouseEnter={() => collapsed && setHoveredItem(item.id)}
-                onMouseLeave={() => setHoveredItem(null)}
-              >
-                <button
-                  type="button"
-                  className={`rr-sidebar__item ${
-                    resolvedActive === item.id ? "is-active" : ""
-                  }`}
-                  onClick={() => onNavigate(item.id)}
-                >
-                  <span className="rr-icon">
-                    <span
-                      className="rr-icon-image"
-                      style={{ "--rr-icon-url": `url(${item.icon})` }}
-                      aria-hidden="true"
-                    />
-                  </span>
-                  <span className="rr-sidebar__item-label">{item.label}</span>
-                </button>
-                {collapsed && hoveredItem === item.id && (
-                  <div className="rr-sidebar__tooltip">{item.label}</div>
-                )}
-              </div>
-            ))}
-        </div>
 
-        {/* THEME SELECTOR WITH POPOVER */}
-        {/* 
-          Another example of a popover implementation
-          Shows current theme and allows selection from themeOptions
-          
-          Features:
-          - Shows current theme label when expanded
-          - Opens popover with theme options on click
-          - Each option shows a color swatch and description
-          - Active theme is highlighted
-        */}
-        <div className="rr-sidebar__theme" ref={themeRef}>
-          <div
-            className="rr-sidebar__item-wrapper"
-            onMouseEnter={() => collapsed && setHoveredItem("theme")}
-            onMouseLeave={() => setHoveredItem(null)}
+          <button
+            type="button"
+            className="rr-sidebar__item"
+            onClick={() => onNavigate("api-keys")}
           >
+            <span className="rr-icon">
+              <span
+                className="rr-icon-image"
+                style={{ "--rr-icon-url": `url(${iconUrl("code")})` }}
+                aria-hidden="true"
+              />
+            </span>
+            <span className="rr-sidebar__item-label">API Keys</span>
+          </button>
+
+          <div className="rr-sidebar__theme" ref={themeRef}>
             <button
               type="button"
               className="rr-sidebar__item rr-sidebar__theme-trigger"
               onClick={() => setThemeOpen((value) => !value)}
-              aria-expanded={themeOpen}
-              aria-haspopup="true"
             >
               <span className="rr-icon">
                 <span
                   className="rr-icon-image"
-                  style={{ "--rr-icon-url": `url(${icons.palette})` }}
+                  style={{ "--rr-icon-url": `url(${iconUrl("paint-bucket")})` }}
                   aria-hidden="true"
                 />
               </span>
               <span className="rr-sidebar__item-label">Theme</span>
-              {/* Current theme label - hidden when collapsed */}
               <span className="rr-sidebar__theme-value">
                 {activeTheme?.label ?? "Theme"}
               </span>
             </button>
-            {collapsed && hoveredItem === "theme" && (
-              <div className="rr-sidebar__tooltip">Theme</div>
+            {themeOpen && (
+              <div className="rr-sidebar__popover rr-sidebar__popover--theme">
+                {themeOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`rr-sidebar__theme-option ${
+                      theme === option.id ? "is-active" : ""
+                    }`}
+                    onClick={() => {
+                      onThemeChange(option.id);
+                      setThemeOpen(false);
+                    }}
+                  >
+                    <span
+                      className="rr-sidebar__theme-swatch"
+                      data-theme={option.swatch ? undefined : option.id}
+                      style={option.swatch ? { background: option.swatch } : undefined}
+                    />
+                    <span className="rr-sidebar__theme-text">
+                      <span className="rr-sidebar__theme-name">{option.label}</span>
+                      <span className="rr-sidebar__theme-meta">{option.meta}</span>
+                    </span>
+                  </button>
+                ))}
+                <div className="rr-sidebar__theme-actions">
+                  <button
+                    type="button"
+                    className="rr-sidebar__theme-create"
+                    onClick={() => {
+                      onCreateTheme?.();
+                      setThemeOpen(false);
+                    }}
+                  >
+                    Create new theme
+                  </button>
+                </div>
+              </div>
             )}
           </div>
-          {/* Theme popover - shows theme options */}
-          {themeOpen && (
-            <div className="rr-sidebar__popover rr-sidebar__popover--theme">
-              {themeOptions.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`rr-sidebar__theme-option ${
-                    theme === option.id ? "is-active" : ""
-                  }`}
-                  onClick={() => {
-                    onThemeChange(option.id);
-                    setThemeOpen(false);
-                  }}
-                >
-                  {/* Color swatch - styled via CSS data-theme attribute */}
-                  <span
-                    className="rr-sidebar__theme-swatch"
-                    data-theme={option.swatch ? undefined : option.id}
-                    style={option.swatch ? { background: option.swatch } : undefined}
-                  />
-                  <span className="rr-sidebar__theme-text">
-                    <span className="rr-sidebar__theme-name">{option.label}</span>
-                    <span className="rr-sidebar__theme-meta">{option.meta}</span>
-                  </span>
+
+          <div className="rr-sidebar__section-divider" />
+          <div className="rr-sidebar__user-popover" ref={profileRef}>
+            <button
+              type="button"
+              className="rr-sidebar__user"
+              onClick={() => setProfileOpen((value) => !value)}
+            >
+              <span className="rr-icon rr-icon--outlined rr-icon--initials">
+                <span className="rr-icon__initials">UN</span>
+              </span>
+              <div className="rr-sidebar__user-meta">
+                <span className="rr-sidebar__user-name">User Name</span>
+                <span className="rr-sidebar__user-plan">Free Plan</span>
+              </div>
+            </button>
+            {profileOpen && (
+              <div className="rr-sidebar__popover rr-sidebar__popover--profile">
+                <button type="button" className="rr-sidebar__popover-item">
+                  Profile
                 </button>
-              ))}
-              <div className="rr-sidebar__theme-actions">
-                <button
-                  type="button"
-                  className="rr-sidebar__theme-create"
-                  onClick={() => {
-                    onCreateTheme?.();
-                    setThemeOpen(false);
-                  }}
-                >
-                  Create new theme
+                <button type="button" className="rr-sidebar__popover-item">
+                  Sign out
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        <div className="rr-sidebar__section-divider" />
-        
-        {/* USER PROFILE SECTION */}
-        {/* 
-          User profile button with popover
-          
-          Features:
-          - Shows user initials in a circular badge (gradient background)
-          - Shows user name and plan when expanded
-          - Opens popover with profile actions when clicked
-          - Popover positioned above the button
-        */}
-        <div className="rr-sidebar__user-popover" ref={profileRef}>
+        {!collapsed && (
           <button
             type="button"
-            className="rr-sidebar__user"
-            onClick={() => setProfileOpen((value) => !value)}
+            className="rr-sidebar__resize-handle"
+            aria-label="Resize sidebar"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              isResizingRef.current = true;
+              document.body.style.cursor = "col-resize";
+              document.body.style.userSelect = "none";
+            }}
+          />
+        )}
+      </aside>
+
+      {createOpen && (
+        <div className="rr-modal-overlay" onClick={() => setCreateOpen(false)}>
+          <div
+            className="rr-project-modal"
+            onClick={(event) => event.stopPropagation()}
           >
-            {/* User initials badge - always visible */}
-            <span className="rr-icon rr-icon--outlined rr-icon--initials">
-              <span className="rr-icon__initials">{getUserInitials()}</span>
-            </span>
-            {/* User metadata - hidden when collapsed */}
-            <div className="rr-sidebar__user-meta">
-              <span className="rr-sidebar__user-name">User Name</span>
-              <span className="rr-sidebar__user-plan">Free Plan</span>
+            <div className="rr-project-modal__left">
+              <h2>Create Project</h2>
+              <div className="rr-project-modal__menu">
+                {templateCategories.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    className={`rr-project-modal__menu-item ${
+                      activeCategory === category ? "is-active" : ""
+                    }`}
+                    onClick={() => setActiveCategory(category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
             </div>
-          </button>
-          {/* Profile popover - appears above button */}
-          {profileOpen && (
-            <div className="rr-sidebar__popover rr-sidebar__popover--profile">
-              <button type="button" className="rr-sidebar__popover-item">
-                Profile
+            <div className="rr-project-modal__right">
+              <button
+                type="button"
+                className="rr-project-modal__close"
+                onClick={() => setCreateOpen(false)}
+              >
+                <img src={iconUrl("close")} alt="" />
               </button>
-              <button type="button" className="rr-sidebar__popover-item">
-                Sign out
-              </button>
-              {/* Add more profile actions here */}
+              <div className="rr-project-modal__actions">
+                <div className="rr-project-modal__search">
+                  <img src={iconUrl("search")} alt="" />
+                  <input
+                    type="text"
+                    value={templateQuery}
+                    onChange={(event) => setTemplateQuery(event.target.value)}
+                    placeholder="Search templates"
+                  />
+                </div>
+                <button
+                  className="rr-button rr-button--primary"
+                  onClick={() =>
+                    handleCreateProject({
+                      name: "Untitled Project",
+                      nodes: [],
+                      edges: [],
+                      status: "Inactive",
+                    })
+                  }
+                >
+                  <img src={iconUrl("note-plus")} alt="" />
+                  Create Blank
+                </button>
+              </div>
+              <div className="rr-template-grid">
+                {filteredTemplates.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    className="rr-template-card"
+                    onClick={() =>
+                      handleCreateProject({
+                        name: template.title,
+                        description: template.description,
+                        nodes: buildTemplateNodes(template.nodes),
+                        edges: [],
+                        status: "Inactive",
+                        icon: getIconForKey(template.title).url,
+                      })
+                    }
+                  >
+                    <div className="rr-template-card__header">
+                      <span
+                        className="rr-projects__icon"
+                        style={{
+                          "--rr-icon-url": `url(${getIconForKey(template.title).url})`,
+                        }}
+                      />
+                      <div>
+                        <p className="rr-card-title">{template.title}</p>
+                        <p className="rr-card-meta">By RocketRide</p>
+                      </div>
+                    </div>
+                    <p className="rr-body">{template.description}</p>
+                    <div className="rr-node-stack">
+                      {template.nodes.slice(0, 5).map((node, index) => (
+                        <NodeChip
+                          key={`${template.id}-${node}-${index}`}
+                          type={node}
+                          index={index}
+                          total={Math.min(template.nodes.length, 5)}
+                        />
+                      ))}
+                      {template.nodes.length > 5 && (
+                        <span className="rr-node-count">
+                          +{template.nodes.length - 5}
+                        </span>
+                      )}
+                    </div>
+                    <span className="rr-template-card__cta">Use template</span>
+                  </button>
+                ))}
+                {filteredTemplates.length === 0 && (
+                  <div className="rr-empty">
+                    <p className="rr-empty-title">No templates found</p>
+                    <p className="rr-body">Try another keyword or category.</p>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </div>
-      </div>
-    </aside>
+      )}
+    </>
   );
 }

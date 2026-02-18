@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "./components/Sidebar.jsx";
-import Home from "./pages/Home.jsx";
 import DesignSystem from "./pages/DesignSystem.jsx";
 import ThemeBuilder from "./pages/ThemeBuilder.jsx";
 import ProjectsCanvas from "./pages/ProjectsCanvas.jsx";
-import ProjectsList from "./pages/ProjectsList.jsx";
 import PlaceholderPage from "./pages/PlaceholderPage.jsx";
 import { useProjects } from "./state/projectsStore.jsx";
 import { baseThemeOptions } from "./data/themeOptions.js";
@@ -16,7 +14,7 @@ import {
 } from "./utils/themeBuilder.js";
 
 export default function App() {
-  const [activeView, setActiveView] = useState("projects");
+  const [activeView, setActiveView] = useState("project-canvas");
   const [theme, setTheme] = useState(
     () => localStorage.getItem("rr-theme") ?? "tungsten"
   );
@@ -63,21 +61,6 @@ export default function App() {
 
   const mainContent = useMemo(() => {
     switch (activeView) {
-      case "home":
-        return <Home />;
-      case "projects":
-        return (
-          <ProjectsList
-            onOpenProject={(projectId) => {
-              setActiveProjectId(projectId);
-              setActiveView("project-canvas");
-            }}
-            onCreateProject={(projectId) => {
-              setActiveProjectId(projectId);
-              setActiveView("project-canvas");
-            }}
-          />
-        );
       case "project-canvas":
         return (
           <ProjectsCanvas
@@ -113,9 +96,14 @@ export default function App() {
       case "changelog":
         return <PlaceholderPage title="Changelog" />;
       default:
-        return <PlaceholderPage title="Coming Soon" />;
+        return (
+          <ProjectsCanvas
+            flowOptions={flowOptions}
+            projectId={activeProjectId}
+          />
+        );
     }
-  }, [activeView, flowOptions]);
+  }, [activeView, flowOptions, activeProjectId]);
 
   const isCanvas = activeView === "project-canvas";
 
