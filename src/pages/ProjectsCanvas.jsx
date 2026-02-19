@@ -2003,6 +2003,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
           pipelineRuns.length
       )
     : 0;
+  const drawerCurrentHeight = drawerOpen ? drawerHeight : 46;
   const avgThroughput = pipelineRuns.length
     ? Math.round(
         pipelineRuns.reduce((sum, run) => sum + (run.throughput ?? 0), 0) /
@@ -2469,6 +2470,13 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
             return;
           }
           setSelectedNodeId(node.id);
+          setConfigOpen(false);
+          setDrawerOpen(true);
+          setInventoryOpen(false);
+        }}
+        onNodeDoubleClick={(_, node) => {
+          if (node.type !== "rrNode") return;
+          setSelectedNodeId(node.id);
           setConfigOpen(true);
           setDrawerOpen(true);
           setInventoryOpen(false);
@@ -2513,7 +2521,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
         <aside
           ref={configRef}
           className={`rr-node-panel ${configOpen ? "is-open" : ""}`}
-          style={{ width: `${panelWidth}px` }}
+          style={{ width: `${panelWidth}px`, bottom: `${drawerCurrentHeight}px` }}
         >
           <button
             type="button"
@@ -2559,7 +2567,6 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
                 className="rr-node-panel__icon-button"
                 onClick={() => {
                   setConfigOpen(false);
-                  setSelectedNodeId(null);
                 }}
                 aria-label="Close config"
               >
