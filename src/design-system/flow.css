@@ -1029,10 +1029,10 @@
 /* Bottom node console drawer */
 .rr-node-console {
   position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 10px;
-  border-radius: 12px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 0;
   border: var(--border-subtle);
   background: rgba(var(--color-bg-secondary-rgb), 0.96);
   backdrop-filter: blur(18px) saturate(130%);

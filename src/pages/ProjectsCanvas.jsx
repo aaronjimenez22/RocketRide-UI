@@ -2255,7 +2255,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
         <div
           className="rr-canvas-toolbar"
           style={{
-            "--rr-toolbar-offset": `${drawerOpen ? drawerHeight + 16 : 24}px`,
+            "--rr-toolbar-offset": `${(drawerOpen ? drawerHeight : 46) + 16}px`,
           }}
         >
           {[
