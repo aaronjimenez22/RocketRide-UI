@@ -1072,18 +1072,24 @@
 }
 
 .rr-node-console__context {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 .rr-node-console__context strong {
   font-size: 13px;
   color: var(--color-text-primary);
+  white-space: nowrap;
 }
 
 .rr-node-console__context span {
   font-size: 11px;
   color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rr-node-console__toggle {
