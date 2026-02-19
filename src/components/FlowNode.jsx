@@ -66,7 +66,7 @@ function FlowPort({
       >
         {/* Visual connection point */}
         <div className="rr-flow-port__dot" aria-hidden="true">
-          <span className="rr-flow-port__plus">+</span>
+          <span className="rr-flow-port__plus" />
         </div>
         {/* Connection handle overlays the anchor for drag-to-connect.
             Note: connection line origin uses the handle's DOM bounds. */}

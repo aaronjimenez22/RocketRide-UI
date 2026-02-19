@@ -400,7 +400,13 @@ export default function Sidebar({
             className="rr-button rr-button--ghost rr-sidebar__new-project"
             onClick={() => setCreateOpen(true)}
           >
-            <img src={iconUrl("add-box")} alt="" />
+            <span className="rr-icon">
+              <span
+                className="rr-icon-image"
+                style={{ "--rr-icon-url": `url(${iconUrl("add-box")})` }}
+                aria-hidden="true"
+              />
+            </span>
             <span>New Project</span>
           </button>
 

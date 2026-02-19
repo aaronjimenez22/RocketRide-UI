@@ -843,10 +843,10 @@
 .rr-sidebar__new-project {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 10px;
   width: 100%;
   min-height: 46px;
-  padding: 12px;
+  padding: 12px 12px 12px 10px;
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
@@ -856,10 +856,17 @@
   transform: none;
 }
 
-.rr-sidebar__new-project img {
+.rr-sidebar__new-project .rr-icon {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+}
+
+.rr-sidebar__new-project .rr-icon-image {
   width: 16px;
   height: 16px;
-  filter: brightness(0) saturate(100%) invert(70%);
+  --rr-icon-color: var(--color-text-secondary);
 }
 
 .rr-sidebar__new-project:hover {
@@ -869,8 +876,8 @@
   transform: none;
 }
 
-.rr-sidebar__new-project:hover img {
-  filter: brightness(0) saturate(100%) invert(100%);
+.rr-sidebar__new-project:hover .rr-icon-image {
+  --rr-icon-color: #ffffff;
 }
 
 .rr-sidebar-projects-list {

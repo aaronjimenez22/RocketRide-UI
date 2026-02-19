@@ -1027,10 +1027,6 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
   const [inventoryTooltip, setInventoryTooltip] = useState(null);
   const [isTooltipHovered, setIsTooltipHovered] = useState(false);
-  const [viewMode, setViewMode] = useState("pipeline");
-  const [analyticsHasNew, setAnalyticsHasNew] = useState(false);
-  const [analyticsRange, setAnalyticsRange] = useState("7d");
-  const [analyticsStatus, setAnalyticsStatus] = useState("all");
   const [pipelineRuns, setPipelineRuns] = useState(
     () => activeProject?.pipelineRuns ?? []
   );
@@ -1041,15 +1037,21 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(420);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerHeight, setDrawerHeight] = useState(320);
+  const [drawerTab, setDrawerTab] = useState("output");
+  const [drawerRange, setDrawerRange] = useState("1m");
   const hideTooltipTimer = useRef(null);
   const didDragNodeRef = useRef(false);
   const isResizingRef = useRef(false);
+  const drawerResizingRef = useRef(false);
 
   const shortcutsRef = useRef(null);
   const saveRef = useRef(null);
   const iconRef = useRef(null);
   const inventoryRef = useRef(null);
   const configRef = useRef(null);
+  const drawerRef = useRef(null);
   const saveTimerRef = useRef(null);
   const titleInputRef = useRef(null);
   const previousTitleRef = useRef(projectTitle);
@@ -1057,10 +1059,12 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
   // Reset per-project analytics/run state when switching projects.
   useEffect(() => {
     setPipelineRuns(activeProject?.pipelineRuns ?? []);
-    setAnalyticsHasNew(false);
     setSourceRunStates({});
     setPipelineEdgeIds([]);
     setActiveEdgeId(null);
+    setSelectedNodeId(null);
+    setDrawerOpen(false);
+    setDrawerTab("output");
   }, [activeProject?.id]);
 
   useEffect(() => {
@@ -1076,16 +1080,6 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (viewMode === "analytics") {
-      setAnalyticsHasNew(false);
-      setInventoryOpen(false);
-      setConnectMenu(null);
-      setConnectPreview(null);
-    }
-  }, [viewMode]);
-
 
   const triggerSave = useCallback(() => {
     if (!autosaveEnabled) {
@@ -1185,7 +1179,6 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
       const pipeline = buildPipeline(sourceId);
       setPipelineEdgeIds(pipeline.edgeIds);
       startPipelineAnimation(pipeline.edgeIds, runDuration);
-      setAnalyticsHasNew(true);
       setConnectMenu(null);
       setConnectingLabel(null);
       setConnectPreview(null);
@@ -1629,6 +1622,102 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     return buildConfigSections(selectedNode.data.title, selectedNodeGroup.id);
   }, [selectedNode, selectedNodeGroup]);
 
+  const isSourceLikeNode = useCallback((node) => {
+    if (!node) return false;
+    const meta = String(node.data?.meta ?? "").toLowerCase();
+    const inputs = node.data?.inputs ?? [];
+    return node.data?.isSource || meta === "source" || inputs.length === 0;
+  }, []);
+
+  const resolvedRuntimeContext = useMemo(() => {
+    if (!selectedNodeId) return null;
+    const selected = nodes.find((node) => node.id === selectedNodeId);
+    if (!selected) return null;
+
+    if (isSourceLikeNode(selected)) {
+      const pipeline = buildPipeline(selected.id);
+      return {
+        selectedNode: selected,
+        sourceNode: selected,
+        pipelineNodeIds: pipeline.nodeIds,
+        pipelineEdgeIds: pipeline.edgeIds,
+      };
+    }
+
+    const visited = new Set([selected.id]);
+    const queue = [selected.id];
+    let upstreamSource = null;
+    while (queue.length && !upstreamSource) {
+      const current = queue.shift();
+      const incoming = edges.filter((edge) => edge.target === current);
+      incoming.forEach((edge) => {
+        if (visited.has(edge.source)) return;
+        visited.add(edge.source);
+        const sourceNode = nodes.find((node) => node.id === edge.source);
+        if (sourceNode && isSourceLikeNode(sourceNode)) {
+          upstreamSource = sourceNode;
+          return;
+        }
+        queue.push(edge.source);
+      });
+    }
+
+    const sourceNode = upstreamSource ?? selected;
+    const pipeline = buildPipeline(sourceNode.id);
+    return {
+      selectedNode: selected,
+      sourceNode,
+      pipelineNodeIds: pipeline.nodeIds,
+      pipelineEdgeIds: pipeline.edgeIds,
+    };
+  }, [selectedNodeId, nodes, edges, buildPipeline, isSourceLikeNode]);
+
+  const runtimeSourceState = useMemo(() => {
+    const sourceId = resolvedRuntimeContext?.sourceNode?.id;
+    if (!sourceId) return "idle";
+    return sourceRunStates[sourceId] ?? "idle";
+  }, [resolvedRuntimeContext, sourceRunStates]);
+
+  const pipelineStepIndex = useMemo(() => {
+    if (!resolvedRuntimeContext?.pipelineEdgeIds?.length || !activeEdgeId) {
+      return -1;
+    }
+    return resolvedRuntimeContext.pipelineEdgeIds.indexOf(activeEdgeId);
+  }, [resolvedRuntimeContext, activeEdgeId]);
+
+  const drawerLogs = useMemo(() => {
+    if (!resolvedRuntimeContext) return [];
+    const base = resolvedRuntimeContext.selectedNode?.data?.title ?? "Node";
+    return [
+      {
+        level: "info",
+        message: `${base}: initialized execution context`,
+      },
+      {
+        level: "warn",
+        message: `${base}: waiting for upstream payload`,
+      },
+      {
+        level: runtimeSourceState === "idle" ? "info" : "error",
+        message:
+          runtimeSourceState === "idle"
+            ? `${base}: no active run in progress`
+            : `${base}: transient network jitter detected`,
+      },
+    ];
+  }, [resolvedRuntimeContext, runtimeSourceState]);
+
+  const metricsSeries = useMemo(() => {
+    const baseRuns = pipelineRuns.slice(0, 16).reverse();
+    const factor = drawerRange === "1m" ? 6 : drawerRange === "5m" ? 3 : drawerRange === "15m" ? 2 : 1;
+    return baseRuns.map((run, index) => ({
+      id: run.id ?? `metric-${index}`,
+      throughput: Math.max(0, Math.round((run.throughput ?? 0) / factor)),
+      cpu: Math.min(100, Math.round(((run.throughput ?? 0) / 2) % 100)),
+      memory: Math.min(1, Number((((run.filesProcessed ?? 0) % 100) / 100).toFixed(2))),
+    }));
+  }, [pipelineRuns, drawerRange]);
+
   const renderConfigField = (field) => {
     if (field.type === "select") {
       return (
@@ -1699,6 +1788,28 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     return () => {
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onMove = (event) => {
+      if (!drawerResizingRef.current || !drawerRef.current) return;
+      const rect = drawerRef.current.getBoundingClientRect();
+      const nextHeight = Math.max(220, Math.min(560, rect.bottom - event.clientY));
+      setDrawerHeight(nextHeight);
+      setDrawerOpen(true);
+    };
+    const onUp = () => {
+      if (!drawerResizingRef.current) return;
+      drawerResizingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
     };
   }, []);
 
@@ -1885,49 +1996,19 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     }, 120);
   };
 
-  const filteredRuns = useMemo(() => {
-    const now = Date.now();
-    const rangeMs = {
-      "7d": 7 * 24 * 3600000,
-      "30d": 30 * 24 * 3600000,
-      "90d": 90 * 24 * 3600000,
-    }[analyticsRange];
-    return pipelineRuns.filter((run) => {
-      const inRange =
-        !rangeMs || now - new Date(run.timestamp).getTime() <= rangeMs;
-      const statusMatch =
-        analyticsStatus === "all" || run.status === analyticsStatus;
-      return inRange && statusMatch;
-    });
-  }, [pipelineRuns, analyticsRange, analyticsStatus]);
-
-  const totalRuns = filteredRuns.length;
-  const avgDuration =
-    totalRuns === 0
-      ? 0
-      : Math.round(
-          filteredRuns.reduce((sum, run) => sum + run.duration, 0) / totalRuns
-        );
-  const avgThroughput =
-    totalRuns === 0
-      ? 0
-      : Math.round(
-          filteredRuns.reduce((sum, run) => sum + (run.throughput ?? 0), 0) /
-            totalRuns
-        );
-  const totalFiles = filteredRuns.reduce(
-    (sum, run) => sum + (run.filesProcessed ?? 0),
-    0
-  );
-
-  const throughputSeries = filteredRuns
-    .slice(0, 8)
-    .reverse()
-    .map((run, index) => ({
-      id: run.id ?? `run-${index}`,
-      value: run.throughput ?? 0,
-      label: new Date(run.timestamp).toLocaleDateString(),
-    }));
+  const latestRun = pipelineRuns[0] ?? null;
+  const avgDuration = pipelineRuns.length
+    ? Math.round(
+        pipelineRuns.reduce((sum, run) => sum + run.duration, 0) /
+          pipelineRuns.length
+      )
+    : 0;
+  const avgThroughput = pipelineRuns.length
+    ? Math.round(
+        pipelineRuns.reduce((sum, run) => sum + (run.throughput ?? 0), 0) /
+          pipelineRuns.length
+      )
+    : 0;
 
   return (
     <div className="rr-canvas">
@@ -2027,7 +2108,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
                 </div>
               )}
             </div>
-          <div className="rr-project-title">
+            <div className="rr-project-title">
               {isEditingTitle ? (
                 <input
                   ref={titleInputRef}
@@ -2078,26 +2159,6 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
                   {projectTitle}
                 </button>
               )}
-            </div>
-            <div className="rr-canvas-tabs" role="tablist" aria-label="View mode">
-              {[
-                { id: "pipeline", label: "Pipeline" },
-                { id: "analytics", label: "Analytics" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={`rr-canvas-tab ${
-                    viewMode === tab.id ? "is-active" : ""
-                  }`}
-                  onClick={() => setViewMode(tab.id)}
-                >
-                  <span>{tab.label}</span>
-                  {tab.id === "analytics" && analyticsHasNew && (
-                    <span className="rr-canvas-tab__dot" aria-hidden="true" />
-                  )}
-                </button>
-              ))}
             </div>
           </div>
 
@@ -2190,473 +2251,522 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
           </div>
         </header>
 
-        {viewMode === "pipeline" && (
-          <>
-            {/* Bottom toolbar stays fixed in viewport; actions are UI-only for now. */}
-            <div className="rr-canvas-toolbar">
-              {[
-                { id: "add-node", label: "Add Node", icon: "add-box", primary: true },
-                { id: "add-comment", label: "Add Comment", icon: "note" },
-                { id: "log-history", label: "Log History", icon: "clock" },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`rr-canvas-tool ${item.primary ? "is-primary" : ""}`}
-                  data-tooltip={item.label}
-                  onClick={
-                    item.id === "add-node"
-                      ? () => {
-                          if (isCanvasLocked) return;
-                          setInventoryOpen((value) => !value);
-                        }
-                      : undefined
-                  }
-                >
-                  <img src={iconUrl(item.icon)} alt="" />
-                </button>
-              ))}
-              <div className="rr-canvas-toolbar__divider" />
-              <button
-                type="button"
-                className="rr-canvas-tool"
-                data-tooltip={nodesLocked ? "Unlock Nodes" : "Lock Nodes"}
-                onClick={() => setNodesLocked((value) => !value)}
-              >
-                <img
-                  src={iconUrl(nodesLocked ? "lock" : "lock-open")}
-                  alt=""
-                />
-              </button>
-              <button
-                type="button"
-                className="rr-canvas-tool"
-                data-tooltip="Fit View"
-                onClick={() => reactFlowInstance?.fitView({ padding: 0.2 })}
-              >
-                <img src={iconUrl("scale")} alt="" />
-              </button>
-              <button
-                type="button"
-                className="rr-canvas-tool"
-                data-tooltip="Zoom Out"
-                onClick={() => reactFlowInstance?.zoomOut()}
-              >
-                <img src={iconUrl("zoom-out")} alt="" />
-              </button>
-              <button
-                type="button"
-                className="rr-canvas-tool"
-                data-tooltip="Zoom In"
-                onClick={() => reactFlowInstance?.zoomIn()}
-              >
-                <img src={iconUrl("zoom-in")} alt="" />
-              </button>
-              <button
-                type="button"
-                className="rr-canvas-tool"
-                data-tooltip="Undo"
-              >
-                <img src={iconUrl("undo")} alt="" />
-              </button>
-              <button
-                type="button"
-                className="rr-canvas-tool"
-                data-tooltip="Redo"
-              >
-                <img src={iconUrl("redo")} alt="" />
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-      {viewMode === "pipeline" ? (
-        <>
-          {/* Pipeline builder view: inventory, canvas, and node config panel. */}
-          <aside
-            ref={inventoryRef}
-            className={`rr-node-inventory ${inventoryOpen ? "is-open" : ""}`}
+        {/* Bottom toolbar stays fixed in viewport; actions are UI-only for now. */}
+        <div
+          className="rr-canvas-toolbar"
+          style={{
+            "--rr-toolbar-offset": `${drawerOpen ? drawerHeight + 16 : 24}px`,
+          }}
+        >
+          {[
+            { id: "add-node", label: "Add Node", icon: "add-box", primary: true },
+            { id: "add-comment", label: "Add Comment", icon: "note" },
+            { id: "log-history", label: "Log History", icon: "clock" },
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`rr-canvas-tool ${item.primary ? "is-primary" : ""}`}
+              data-tooltip={item.label}
+              onClick={
+                item.id === "add-node"
+                  ? () => {
+                      if (isCanvasLocked) return;
+                      setInventoryOpen((value) => !value);
+                    }
+                  : undefined
+              }
+            >
+              <img src={iconUrl(item.icon)} alt="" />
+            </button>
+          ))}
+          <div className="rr-canvas-toolbar__divider" />
+          <button
+            type="button"
+            className="rr-canvas-tool"
+            data-tooltip={nodesLocked ? "Unlock Nodes" : "Lock Nodes"}
+            onClick={() => setNodesLocked((value) => !value)}
           >
-            <div className="rr-node-inventory__header">
-              <h2>Node Inventory</h2>
+            <img
+              src={iconUrl(nodesLocked ? "lock" : "lock-open")}
+              alt=""
+            />
+          </button>
+          <button
+            type="button"
+            className="rr-canvas-tool"
+            data-tooltip="Fit View"
+            onClick={() => reactFlowInstance?.fitView({ padding: 0.2 })}
+          >
+            <img src={iconUrl("scale")} alt="" />
+          </button>
+          <button
+            type="button"
+            className="rr-canvas-tool"
+            data-tooltip="Zoom Out"
+            onClick={() => reactFlowInstance?.zoomOut()}
+          >
+            <img src={iconUrl("zoom-out")} alt="" />
+          </button>
+          <button
+            type="button"
+            className="rr-canvas-tool"
+            data-tooltip="Zoom In"
+            onClick={() => reactFlowInstance?.zoomIn()}
+          >
+            <img src={iconUrl("zoom-in")} alt="" />
+          </button>
+          <button
+            type="button"
+            className="rr-canvas-tool"
+            data-tooltip="Undo"
+          >
+            <img src={iconUrl("undo")} alt="" />
+          </button>
+          <button
+            type="button"
+            className="rr-canvas-tool"
+            data-tooltip="Redo"
+          >
+            <img src={iconUrl("redo")} alt="" />
+          </button>
+        </div>
+      </div>
+      {/* Pipeline builder view: inventory, canvas, node config panel, and runtime drawer. */}
+      <aside
+        ref={inventoryRef}
+        className={`rr-node-inventory ${inventoryOpen ? "is-open" : ""}`}
+      >
+        <div className="rr-node-inventory__header">
+          <h2>Node Inventory</h2>
+          <button
+            type="button"
+            className="rr-node-inventory__close"
+            onClick={() => setInventoryOpen(false)}
+          >
+            <img src={iconUrl("close")} alt="" />
+          </button>
+        </div>
+        <div className="rr-node-inventory__search">
+          <img src={iconUrl("search")} alt="" />
+          <input
+            type="text"
+            value={inventoryQuery}
+            onChange={(event) => setInventoryQuery(event.target.value)}
+            placeholder="Search nodes"
+          />
+        </div>
+        <div className="rr-node-inventory__list">
+          {filteredGroups.map((group) => {
+            const collapsed = collapsedGroups.has(group.id);
+            const showNodes = !collapsed || inventoryQuery.trim().length > 0;
+            return (
+              <div key={group.id} className="rr-node-group">
+                <button
+                  type="button"
+                  className="rr-node-group__toggle"
+                  onClick={() => toggleGroup(group.id)}
+                >
+                  <span>{group.label}</span>
+                  <img
+                    src={iconUrl(collapsed ? "chevron-right" : "chevron-down")}
+                    alt=""
+                  />
+                </button>
+                {showNodes && (
+                  <div className="rr-node-group__items">
+                    {group.nodes.map((node) => {
+                      const icon = getIconForKey(node);
+                      return (
+                        <button
+                          key={node}
+                          type="button"
+                          className="rr-node-item"
+                          onClick={() => addInventoryNode(node, group.id)}
+                          onMouseEnter={(event) =>
+                            showInventoryTooltip(event, node)
+                          }
+                          onMouseLeave={hideInventoryTooltip}
+                        >
+                          <span className="rr-node-item__icon">
+                            <img src={icon.url} alt="" />
+                          </span>
+                          <span className="rr-node-item__label">{node}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </aside>
+      {inventoryTooltip &&
+        createPortal(
+          <div
+            className="rr-node-item__tooltip rr-node-item__tooltip--portal"
+            style={{
+              top: `${inventoryTooltip.rect.top + inventoryTooltip.rect.height / 2}px`,
+              left: `${inventoryTooltip.rect.left - 12}px`,
+            }}
+            onMouseEnter={() => {
+              if (hideTooltipTimer.current) {
+                clearTimeout(hideTooltipTimer.current);
+              }
+              setIsTooltipHovered(true);
+            }}
+            onMouseLeave={() => {
+              setIsTooltipHovered(false);
+              setInventoryTooltip(null);
+            }}
+          >
+            <span className="rr-node-item__tooltip-title">
+              {inventoryTooltip.title}
+            </span>
+            <span className="rr-node-item__tooltip-body">
+              {inventoryTooltip.description}
+            </span>
+            <span className="rr-node-item__tooltip-doc">
+              <img src={iconUrl("file")} alt="" />
+              Docs
+            </span>
+          </div>,
+          document.body
+        )}
+      <ReactFlow
+        nodes={decoratedNodes}
+        edges={decoratedEdges}
+        onNodesChange={handleNodesChange}
+        onEdgesChange={handleEdgesChange}
+        onConnect={onConnect}
+        onConnectStart={handleConnectStart}
+        onConnectEnd={handleConnectEnd}
+        isValidConnection={isValidConnection}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
+        onEdgeMouseLeave={() => setHoveredEdgeId(null)}
+        onEdgeClick={(_, edge) => setSelectedEdgeId(edge.id)}
+        onPaneClick={() => {
+          setSelectedEdgeId(null);
+          if (Date.now() - suppressPaneClickRef.current < 200) {
+            return;
+          }
+          setConnectMenu(null);
+          setConnectingLabel(null);
+          setConnectPreview(null);
+          setConfigOpen(false);
+          setSelectedNodeId(null);
+        }}
+        onNodeClick={(_, node) => {
+          setSelectedEdgeId(null);
+          if (didDragNodeRef.current) {
+            didDragNodeRef.current = false;
+            return;
+          }
+          if (node.type !== "rrNode") {
+            return;
+          }
+          setSelectedNodeId(node.id);
+          setConfigOpen(true);
+          setDrawerOpen(true);
+          setInventoryOpen(false);
+        }}
+        onNodeDragStart={() => {
+          didDragNodeRef.current = false;
+        }}
+        onNodeDrag={() => {
+          didDragNodeRef.current = true;
+        }}
+        onNodeDragStop={() => {
+          window.setTimeout(() => {
+            didDragNodeRef.current = false;
+          }, 0);
+        }}
+        fitView={options.fitView}
+        minZoom={options.minZoom}
+        maxZoom={options.maxZoom}
+        nodesDraggable={!isCanvasLocked}
+        nodesConnectable={!isCanvasLocked}
+        onInit={setReactFlowInstance}
+        onMove={(_, nextViewport) => setViewport(nextViewport)}
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background gap={24} size={1} color="rgba(255,255,255,0.08)" />
+      </ReactFlow>
+      {connectPreview && connectingLabel && (
+        <div
+          className="rr-connect-preview"
+          style={{
+            top: connectPreview.y,
+            left: connectPreview.x,
+            width: MENU_NODE_WIDTH * (viewport.zoom ?? 1),
+            height: MENU_NODE_HEIGHT * (viewport.zoom ?? 1),
+            transform: `translate(${MENU_OFFSET_X * (viewport.zoom ?? 1)}px, -50%)`,
+          }}
+        >
+          <span className="rr-connect-preview__icon" aria-hidden="true" />
+        </div>
+      )}
+      {selectedNode && (
+        <aside
+          ref={configRef}
+          className={`rr-node-panel ${configOpen ? "is-open" : ""}`}
+          style={{ width: `${panelWidth}px` }}
+        >
+          <button
+            type="button"
+            className="rr-node-panel__resize"
+            aria-label="Resize panel"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              isResizingRef.current = true;
+              document.body.style.cursor = "col-resize";
+              document.body.style.userSelect = "none";
+            }}
+          />
+          <div className="rr-node-panel__header">
+            <div className="rr-node-panel__title">
+              <div className="rr-node-panel__icon">
+                {selectedNode.data?.iconSrc ? (
+                  <img src={selectedNode.data.iconSrc} alt="" />
+                ) : (
+                  <span className="rr-node-panel__icon-fallback">
+                    {selectedNode.data?.title?.slice(0, 1)}
+                  </span>
+                )}
+              </div>
+              <div className="rr-node-panel__heading">
+                <span className="rr-node-panel__name">
+                  {selectedNode.data?.title}
+                </span>
+                <span className="rr-node-panel__meta">
+                  {selectedNodeGroup?.label ?? "Node"}
+                </span>
+              </div>
+            </div>
+            <div className="rr-node-panel__actions">
               <button
                 type="button"
-                className="rr-node-inventory__close"
-                onClick={() => setInventoryOpen(false)}
+                className="rr-node-panel__icon-button"
+                aria-label="Open docs"
+              >
+                <img src={iconUrl("book")} alt="" />
+              </button>
+              <button
+                type="button"
+                className="rr-node-panel__icon-button"
+                onClick={() => {
+                  setConfigOpen(false);
+                  setSelectedNodeId(null);
+                }}
+                aria-label="Close config"
               >
                 <img src={iconUrl("close")} alt="" />
               </button>
             </div>
-            <div className="rr-node-inventory__search">
-              <img src={iconUrl("search")} alt="" />
-              <input
-                type="text"
-                value={inventoryQuery}
-                onChange={(event) => setInventoryQuery(event.target.value)}
-                placeholder="Search nodes"
-              />
+          </div>
+          <div className="rr-node-panel__body">
+            <div className="rr-node-panel__summary">
+              {getNodeDescription(selectedNode.data?.title)}
             </div>
-            <div className="rr-node-inventory__list">
-              {filteredGroups.map((group) => {
-                const collapsed = collapsedGroups.has(group.id);
-                const showNodes = !collapsed || inventoryQuery.trim().length > 0;
-                return (
-                  <div key={group.id} className="rr-node-group">
-                    <button
-                      type="button"
-                      className="rr-node-group__toggle"
-                      onClick={() => toggleGroup(group.id)}
-                    >
-                      <span>{group.label}</span>
-                      <img
-                        src={iconUrl(collapsed ? "chevron-right" : "chevron-down")}
-                        alt=""
-                      />
-                    </button>
-                    {showNodes && (
-                      <div className="rr-node-group__items">
-                        {group.nodes.map((node) => {
-                          const icon = getIconForKey(node);
-                          return (
-                            <button
-                              key={node}
-                              type="button"
-                              className="rr-node-item"
-                              onClick={() => addInventoryNode(node, group.id)}
-                              onMouseEnter={(event) =>
-                                showInventoryTooltip(event, node)
-                              }
-                              onMouseLeave={hideInventoryTooltip}
-                            >
-                              <span className="rr-node-item__icon">
-                                <img src={icon.url} alt="" />
-                              </span>
-                              <span className="rr-node-item__label">{node}</span>
-                            </button>
-                          );
-                        })}
+            {selectedConfigSections.map((section) => (
+              <div key={section.title} className="rr-node-panel__section">
+                <span className="rr-node-panel__section-title">
+                  {section.title}
+                </span>
+                <div className="rr-node-panel__section-content">
+                  {section.fields.map((field) => (
+                    <div key={field.id} className="rr-config-row">
+                      <div className="rr-config-row__label">
+                        <p className="rr-config-row__title">{field.label}</p>
+                        {field.helper && (
+                          <p className="rr-helper">{field.helper}</p>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </aside>
-          {inventoryTooltip &&
-            createPortal(
-              <div
-                className="rr-node-item__tooltip rr-node-item__tooltip--portal"
-                style={{
-                  top: `${inventoryTooltip.rect.top + inventoryTooltip.rect.height / 2}px`,
-                  left: `${inventoryTooltip.rect.left - 12}px`,
-                }}
-                onMouseEnter={() => {
-                  if (hideTooltipTimer.current) {
-                    clearTimeout(hideTooltipTimer.current);
-                  }
-                  setIsTooltipHovered(true);
-                }}
-                onMouseLeave={() => {
-                  setIsTooltipHovered(false);
-                  setInventoryTooltip(null);
-                }}
-              >
-                <span className="rr-node-item__tooltip-title">
-                  {inventoryTooltip.title}
-                </span>
-                <span className="rr-node-item__tooltip-body">
-                  {inventoryTooltip.description}
-                </span>
-                <span className="rr-node-item__tooltip-doc">
-                  <img src={iconUrl("file")} alt="" />
-                  Docs
-                </span>
-              </div>,
-              document.body
-            )}
-          <ReactFlow
-            nodes={decoratedNodes}
-            edges={decoratedEdges}
-            onNodesChange={handleNodesChange}
-            onEdgesChange={handleEdgesChange}
-            onConnect={onConnect}
-            onConnectStart={handleConnectStart}
-            onConnectEnd={handleConnectEnd}
-            isValidConnection={isValidConnection}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
-            onEdgeMouseLeave={() => setHoveredEdgeId(null)}
-            onEdgeClick={(_, edge) => setSelectedEdgeId(edge.id)}
-            onPaneClick={() => {
-              setSelectedEdgeId(null);
-              if (Date.now() - suppressPaneClickRef.current < 200) {
-                return;
-              }
-              setConnectMenu(null);
-              setConnectingLabel(null);
-              setConnectPreview(null);
-              setConfigOpen(false);
-              setSelectedNodeId(null);
-            }}
-            onNodeClick={(_, node) => {
-              setSelectedEdgeId(null);
-              if (didDragNodeRef.current) {
-                didDragNodeRef.current = false;
-                return;
-              }
-              if (node.type !== "rrNode") {
-                return;
-              }
-              setSelectedNodeId(node.id);
-              setConfigOpen(true);
-              setInventoryOpen(false);
-            }}
-            onNodeDragStart={() => {
-              didDragNodeRef.current = false;
-            }}
-            onNodeDrag={() => {
-              didDragNodeRef.current = true;
-            }}
-            onNodeDragStop={() => {
-              window.setTimeout(() => {
-                didDragNodeRef.current = false;
-              }, 0);
-            }}
-            fitView={options.fitView}
-            minZoom={options.minZoom}
-            maxZoom={options.maxZoom}
-            nodesDraggable={!isCanvasLocked}
-            nodesConnectable={!isCanvasLocked}
-            onInit={setReactFlowInstance}
-            onMove={(_, nextViewport) => setViewport(nextViewport)}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background gap={24} size={1} color="rgba(255,255,255,0.08)" />
-          </ReactFlow>
-          {connectPreview && connectingLabel && (
-            <div
-              className="rr-connect-preview"
-              style={{
-                top: connectPreview.y,
-                left: connectPreview.x,
-                width: MENU_NODE_WIDTH * (viewport.zoom ?? 1),
-                height: MENU_NODE_HEIGHT * (viewport.zoom ?? 1),
-                transform: `translate(${MENU_OFFSET_X * (viewport.zoom ?? 1)}px, -50%)`,
-              }}
-            >
-              <span className="rr-connect-preview__icon" aria-hidden="true" />
-            </div>
-          )}
-          {selectedNode && (
-            <aside
-              ref={configRef}
-              className={`rr-node-panel ${configOpen ? "is-open" : ""}`}
-              style={{ width: `${panelWidth}px` }}
-            >
-              <button
-                type="button"
-                className="rr-node-panel__resize"
-                aria-label="Resize panel"
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  isResizingRef.current = true;
-                  document.body.style.cursor = "col-resize";
-                  document.body.style.userSelect = "none";
-                }}
-              />
-              <div className="rr-node-panel__header">
-                <div className="rr-node-panel__title">
-                  <div className="rr-node-panel__icon">
-                    {selectedNode.data?.iconSrc ? (
-                      <img src={selectedNode.data.iconSrc} alt="" />
-                    ) : (
-                      <span className="rr-node-panel__icon-fallback">
-                        {selectedNode.data?.title?.slice(0, 1)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="rr-node-panel__heading">
-                    <span className="rr-node-panel__name">
-                      {selectedNode.data?.title}
-                    </span>
-                    <span className="rr-node-panel__meta">
-                      {selectedNodeGroup?.label ?? "Node"}
-                    </span>
-                  </div>
-                </div>
-                <div className="rr-node-panel__actions">
-                  <button
-                    type="button"
-                    className="rr-node-panel__icon-button"
-                    aria-label="Open docs"
-                  >
-                    <img src={iconUrl("book")} alt="" />
-                  </button>
-                  <button
-                    type="button"
-                    className="rr-node-panel__icon-button"
-                    onClick={() => {
-                      setConfigOpen(false);
-                      setSelectedNodeId(null);
-                    }}
-                    aria-label="Close config"
-                  >
-                    <img src={iconUrl("close")} alt="" />
-                  </button>
+                      <div className="rr-node-panel__control">
+                        {renderConfigField(field)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="rr-node-panel__body">
-                <div className="rr-node-panel__summary">
-                  {getNodeDescription(selectedNode.data?.title)}
-                </div>
-                {selectedConfigSections.map((section) => (
-                  <div key={section.title} className="rr-node-panel__section">
-                    <span className="rr-node-panel__section-title">
-                      {section.title}
-                    </span>
-                    <div className="rr-node-panel__section-content">
-                      {section.fields.map((field) => (
-                        <div key={field.id} className="rr-config-row">
-                          <div className="rr-config-row__label">
-                            <p className="rr-config-row__title">{field.label}</p>
-                            {field.helper && (
-                              <p className="rr-helper">{field.helper}</p>
-                            )}
-                          </div>
-                          <div className="rr-node-panel__control">
-                            {renderConfigField(field)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+            ))}
+          </div>
+        </aside>
+      )}
+      <section
+        ref={drawerRef}
+        className={`rr-node-console ${drawerOpen ? "is-open" : "is-collapsed"}`}
+        style={{ "--rr-drawer-height": `${drawerHeight}px` }}
+      >
+        <button
+          type="button"
+          className="rr-node-console__resize"
+          aria-label="Resize runtime drawer"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            drawerResizingRef.current = true;
+            document.body.style.cursor = "ns-resize";
+            document.body.style.userSelect = "none";
+          }}
+        />
+        <header className="rr-node-console__header">
+          <div className="rr-node-console__context">
+            <strong>
+              {resolvedRuntimeContext?.selectedNode?.data?.title ?? "Node Console"}
+            </strong>
+            <span>
+              Source: {resolvedRuntimeContext?.sourceNode?.data?.title ?? "Select a node"}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="rr-node-console__toggle"
+            onClick={() => setDrawerOpen((value) => !value)}
+          >
+            <img src={iconUrl(drawerOpen ? "chevron-down" : "chevron-up")} alt="" />
+          </button>
+        </header>
+        <div className="rr-node-console__tabs" role="tablist" aria-label="Node runtime tabs">
+          {[
+            { id: "output", label: "Output" },
+            { id: "run", label: "Run" },
+            { id: "log", label: "Log" },
+            { id: "metrics", label: "Metrics" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={`rr-node-console__tab ${drawerTab === tab.id ? "is-active" : ""}`}
+              onClick={() => {
+                setDrawerTab(tab.id);
+                if (!drawerOpen) setDrawerOpen(true);
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="rr-node-console__body">
+          {!resolvedRuntimeContext ? (
+            <div className="rr-node-console__empty">
+              Select a node to inspect output, run, logs, and metrics.
+            </div>
+          ) : drawerTab === "output" ? (
+            <div className="rr-node-console__panel">
+              <div className="rr-node-console__stats">
+                <span>MIME: application/json</span>
+                <span>Records: {latestRun?.filesProcessed ?? 0}</span>
+                <span>
+                  Last updated: {latestRun ? new Date(latestRun.timestamp).toLocaleTimeString() : "N/A"}
+                </span>
+              </div>
+              <pre className="rr-node-console__code">{`{\n  \"node\": \"${resolvedRuntimeContext.selectedNode.data?.title}\",\n  \"source\": \"${resolvedRuntimeContext.sourceNode.data?.title}\",\n  \"status\": \"${runtimeSourceState}\",\n  \"preview\": \"Sample output payload\" \n}`}</pre>
+            </div>
+          ) : drawerTab === "run" ? (
+            <div className="rr-node-console__panel">
+              <div className="rr-node-console__status-row">
+                <span className={`rr-badge rr-badge--${runtimeSourceState === "idle" ? "warning" : "success"}`}>
+                  {runtimeSourceState === "idle" ? "Idle" : "Running"}
+                </span>
+                <span>Avg Duration: {avgDuration}s</span>
+                <span>Avg Throughput: {avgThroughput} files/min</span>
+              </div>
+              <div className="rr-node-console__timeline">
+                {pipelineRuns.slice(0, 5).map((run) => (
+                  <div key={run.id} className="rr-node-console__timeline-item">
+                    <span>{new Date(run.timestamp).toLocaleTimeString()}</span>
+                    <span>{run.duration}s</span>
+                    <span>{run.throughput ?? 0} files/min</span>
                   </div>
                 ))}
               </div>
-            </aside>
-          )}
-        </>
-      ) : (
-        // Analytics view: summarizes simulated run performance once pipelines execute.
-        <section className="rr-analytics">
-          {pipelineRuns.length === 0 ? (
-            <div className="rr-analytics__empty">
-              <h2>Create your first pipeline to see analytics.</h2>
-              <p>
-                Run a pipeline to unlock performance insights, throughput trends,
-                and quality metrics across your workflow.
-              </p>
+            </div>
+          ) : drawerTab === "log" ? (
+            <div className="rr-node-console__panel">
+              <div className="rr-node-console__log-filters">
+                <span className="rr-pill">All</span>
+                <span className="rr-pill">Warnings</span>
+                <span className="rr-pill">Errors</span>
+              </div>
+              <div className="rr-node-console__logs">
+                {drawerLogs.map((item, index) => (
+                  <div key={`${item.level}-${index}`} className="rr-node-console__log-item">
+                    <span className={`rr-badge rr-badge--${item.level === "error" ? "failure" : item.level === "warn" ? "warning" : "success"}`}>
+                      {item.level.toUpperCase()}
+                    </span>
+                    <span>{new Date().toLocaleTimeString()}</span>
+                    <span>{item.message}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
-            <>
-              <div className="rr-analytics__header">
-                <div>
-                  <h2>Pipeline Analytics</h2>
-                  <p>Track throughput, stability, and processing velocity.</p>
-                </div>
-                <div className="rr-analytics__filters">
+            <div className="rr-node-console__panel">
+              <div className="rr-node-console__status-strip">
+                <span
+                  className={`rr-node-console__dot ${runtimeSourceState === "idle" ? "" : "is-online"}`}
+                />
+                <strong>{runtimeSourceState === "idle" ? "Offline" : "Online"}</strong>
+                <span>{runtimeSourceState === "idle" ? "Not running" : "Running"}</span>
+              </div>
+              <div className="rr-node-console__metric-range">
+                {[
+                  ["1m", "1 min"],
+                  ["5m", "5 min"],
+                  ["15m", "15 min"],
+                  ["all", "All"],
+                ].map(([key, label]) => (
                   <button
+                    key={key}
                     type="button"
-                    className="rr-analytics__filter"
+                    className={`rr-node-console__range-btn ${drawerRange === key ? "is-active" : ""}`}
+                    onClick={() => setDrawerRange(key)}
                   >
-                    All Pipelines
-                    <img src={iconUrl("chevron-down")} alt="" />
+                    {label}
                   </button>
-                  <button
-                    type="button"
-                    className="rr-analytics__filter"
-                    onClick={() =>
-                      setAnalyticsRange((value) =>
-                        value === "7d" ? "30d" : value === "30d" ? "90d" : "7d"
-                      )
-                    }
-                  >
-                    {analyticsRange.toUpperCase()}
-                    <img src={iconUrl("calendar")} alt="" />
-                  </button>
-                  <button
-                    type="button"
-                    className="rr-analytics__filter"
-                    onClick={() =>
-                      setAnalyticsStatus((value) =>
-                        value === "all"
-                          ? "success"
-                          : value === "success"
-                            ? "warning"
-                            : value === "warning"
-                              ? "failure"
-                              : "all"
-                      )
-                    }
-                  >
-                    {analyticsStatus === "all"
-                      ? "All Runs"
-                      : analyticsStatus}
-                    <img src={iconUrl("filter")} alt="" />
-                  </button>
+                ))}
+              </div>
+              <div className="rr-node-console__chart">
+                <svg viewBox="0 0 700 220" preserveAspectRatio="none">
+                  <polyline
+                    points={metricsSeries
+                      .map((point, index) => {
+                        const x = metricsSeries.length <= 1 ? 0 : (index / (metricsSeries.length - 1)) * 700;
+                        const y = 200 - Math.min(180, point.throughput);
+                        return `${x},${y}`;
+                      })
+                      .join(" ")}
+                    fill="none"
+                    stroke="rgba(var(--color-accent-primary-rgb), 0.9)"
+                    strokeWidth="3"
+                  />
+                </svg>
+              </div>
+              <div className="rr-node-console__flow">
+                <h4>Pipeline Flow</h4>
+                <div className="rr-node-console__flow-steps">
+                  {resolvedRuntimeContext.pipelineNodeIds.map((nodeId, index) => {
+                    const node = nodes.find((item) => item.id === nodeId);
+                    return (
+                      <span
+                        key={nodeId}
+                        className={`rr-node-console__flow-step ${
+                          pipelineStepIndex >= index - 1 ? "is-active" : ""
+                        }`}
+                      >
+                        {node?.data?.title ?? nodeId}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
-
-              <div className="rr-analytics__grid">
-                <div className="rr-analytics-card">
-                  <span>Total Runs</span>
-                  <strong>{totalRuns}</strong>
-                  <p>Latest {analyticsRange.toUpperCase()} activity</p>
-                </div>
-                <div className="rr-analytics-card">
-                  <span>Avg Duration</span>
-                  <strong>{avgDuration}s</strong>
-                  <p>End-to-end pipeline runtime</p>
-                </div>
-                <div className="rr-analytics-card">
-                  <span>Throughput</span>
-                  <strong>{avgThroughput} files/min</strong>
-                  <p>Avg processing velocity</p>
-                </div>
-                <div className="rr-analytics-card">
-                  <span>Files Processed</span>
-                  <strong>{totalFiles.toLocaleString()}</strong>
-                  <p>Across simulated runs</p>
-                </div>
-              </div>
-
-              <div className="rr-analytics__charts">
-                <div className="rr-analytics-panel">
-                  <h3>Throughput Trend</h3>
-                  <div className="rr-analytics-chart">
-                    {throughputSeries.map((point) => (
-                      <div
-                        key={point.id}
-                        className="rr-analytics-bar"
-                        style={{
-                          height: `${Math.max(18, point.value)}px`,
-                        }}
-                        title={`${point.value} files/min`}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div className="rr-analytics-panel">
-                  <h3>Run Health</h3>
-                  <div className="rr-analytics-health">
-                    {filteredRuns.slice(0, 5).map((run) => (
-                      <div key={run.id} className="rr-analytics-health__row">
-                        <span>
-                          {new Date(run.timestamp).toLocaleTimeString()}
-                        </span>
-                        <span className={`rr-badge rr-badge--${run.status}`}>
-                          {run.status}
-                        </span>
-                        <span>{run.duration}s</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </>
+            </div>
           )}
-        </section>
-      )}
+        </div>
+      </section>
     </div>
   );
 }
