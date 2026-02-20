@@ -5,18 +5,13 @@ import { iconUrl, getIconForKey } from "../utils/iconLibrary";
 
 export default function ConnectMenuNode({ id, data }) {
   const {
-    categories,
-    activeCategory,
-    onSelectCategory,
     onClose,
-    nodesByCategory,
+    groupedNodes,
     onPickNode,
     getDescription,
-    compatibleNodes,
+    outputLabel,
   } = data;
 
-  const visibleNodes = nodesByCategory[activeCategory] ?? [];
-  const headerTitle = activeCategory;
   const [tooltip, setTooltip] = useState(null);
 
   const placeholderId = data?.inputs?.[0]?.id;
@@ -31,10 +26,6 @@ export default function ConnectMenuNode({ id, data }) {
     setTooltip(null);
   };
 
-  const isCompatible = (node) =>
-    activeCategory === "Recommended" ||
-    (compatibleNodes ? compatibleNodes.has(node) : false);
-
   return (
     <div className="rr-connect-menu-node">
       <Handle
@@ -44,7 +35,7 @@ export default function ConnectMenuNode({ id, data }) {
         className="rr-connect-menu-node__handle"
       />
       <div className="rr-connect-menu-node__header">
-        <h3>{headerTitle}</h3>
+        <h3>{outputLabel ? `${outputLabel} Compatible` : "Compatible Nodes"}</h3>
       </div>
       <button
         type="button"
@@ -57,56 +48,35 @@ export default function ConnectMenuNode({ id, data }) {
       >
         <img src={iconUrl("close")} alt="" />
       </button>
-      <div className="rr-connect-menu-node__categories">
-        {categories.map((category) => (
-          <button
-            key={category.label}
-            type="button"
-            className={`rr-connect-menu-node__category ${
-              activeCategory === category.label ? "is-active" : ""
-            }`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onSelectCategory?.(category.label);
-            }}
-            aria-label={category.label}
-          >
-            <img src={iconUrl(category.icon)} alt="" />
-          </button>
-        ))}
-      </div>
       <div className="rr-connect-menu-node__list">
-        <div className="rr-connect-menu-node__section">
-          <h4>{activeCategory}</h4>
-          {visibleNodes.length === 0 && (
-            <span className="rr-connect-menu-node__empty">
-              No compatible nodes
-            </span>
-          )}
-          {visibleNodes.map((node) => (
-            <button
-              key={`${activeCategory}-${node}`}
-              type="button"
-              className={`rr-connect-menu-node__item ${
-                isCompatible(node) ? "" : "is-disabled"
-              }`}
-              onClick={(event) => {
-                event.stopPropagation();
-                if (!isCompatible(node)) {
-                  return;
-                }
-                onPickNode?.(node);
-              }}
-              onMouseEnter={(event) => showTooltip(event, node)}
-              onMouseLeave={hideTooltip}
-            >
-              <span className="rr-connect-menu-node__icon">
-                <img src={getIconForKey(node).url} alt="" />
-              </span>
-              <span>{node}</span>
-            </button>
-          ))}
-        </div>
+        {groupedNodes?.length === 0 && (
+          <span className="rr-connect-menu-node__empty">
+            No compatible nodes
+          </span>
+        )}
+        {groupedNodes?.map((group) => (
+          <section key={group.label} className="rr-connect-menu-node__section">
+            <h4>{group.label}</h4>
+            {group.nodes.map((node) => (
+              <button
+                key={`${group.label}-${node}`}
+                type="button"
+                className="rr-connect-menu-node__item"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPickNode?.(node);
+                }}
+                onMouseEnter={(event) => showTooltip(event, node)}
+                onMouseLeave={hideTooltip}
+              >
+                <span className="rr-connect-menu-node__icon">
+                  <img src={getIconForKey(node).url} alt="" />
+                </span>
+                <span>{node}</span>
+              </button>
+            ))}
+          </section>
+        ))}
       </div>
       {tooltip &&
         createPortal(

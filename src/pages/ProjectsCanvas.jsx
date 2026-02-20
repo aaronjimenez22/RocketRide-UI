@@ -993,7 +993,6 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
   const [nodesLocked, setNodesLocked] = useState(false);
   const [connectingLabel, setConnectingLabel] = useState(null);
   const [connectMenu, setConnectMenu] = useState(null);
-  const [connectMenuCategory, setConnectMenuCategory] = useState("Recommended");
   const [connectPreview, setConnectPreview] = useState(null);
   const didConnectRef = useRef(false);
   const connectContextRef = useRef(null);
@@ -1021,7 +1020,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     activeProject?.iconColor ?? "#ffffff"
   );
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
-  const [viewport, setViewport] = useState({ zoom: 1 });
+  const viewportRef = useRef({ zoom: 1 });
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [inventoryQuery, setInventoryQuery] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
@@ -1253,7 +1252,6 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
       };
       connectContextRef.current = context;
       setConnectMenu(context);
-      setConnectMenuCategory("Recommended");
     }
   };
 
@@ -1543,22 +1541,6 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     triggerSave();
   };
 
-  const categoryIcons = {
-    Recommended: "arrow-right",
-    Source: "download",
-    Embedding: "stack",
-    LLM: "cpu",
-    Database: "database",
-    Image: "image",
-    Preprocessor: "filters",
-    Store: "archive",
-    Text: "align-left",
-    Audio: "volume",
-    Video: "video",
-    Data: "table",
-    Infrastructure: "link",
-  };
-
   const getCompatibleNodes = useMemo(() => {
     if (!connectMenu?.outputLabel) return [];
     const label = connectMenu.outputLabel;
@@ -1569,43 +1551,18 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     );
   }, [connectMenu]);
 
-  const connectMenuGroups = useMemo(
-    () =>
-      NODE_GROUPS.map((group) => ({
-        label: group.label,
-        nodes: group.nodes,
-      })),
-    []
-  );
-
-  const recommendedNodes = useMemo(
-    () => getCompatibleNodes.slice(0, 4).map((item) => item.node),
-    [getCompatibleNodes]
-  );
-
-  const connectMenuCategories = useMemo(() => {
-    const categories = [{ label: "Recommended", icon: categoryIcons.Recommended }];
-    NODE_GROUPS.forEach((group) => {
-      categories.push({
-        label: group.label,
-        icon: getIconForKey(group.label).name,
-      });
+  const compatibleNodesByGroup = useMemo(() => {
+    const grouped = new Map();
+    getCompatibleNodes.forEach((item) => {
+      const next = grouped.get(item.group) ?? [];
+      next.push(item.node);
+      grouped.set(item.group, next);
     });
-    return categories;
-  }, []);
-
-  const nodesByCategory = useMemo(() => {
-    const mapping = { Recommended: recommendedNodes };
-    connectMenuGroups.forEach((group) => {
-      mapping[group.label] = group.nodes;
-    });
-    return mapping;
-  }, [recommendedNodes, connectMenuGroups]);
-
-  const compatibleNodeSet = useMemo(
-    () => new Set(getCompatibleNodes.map((item) => item.node)),
-    [getCompatibleNodes]
-  );
+    return Array.from(grouped.entries()).map(([label, nodes]) => ({
+      label,
+      nodes,
+    }));
+  }, [getCompatibleNodes]);
 
   const selectedNode = useMemo(
     () => nodes.find((node) => node.id === selectedNodeId) ?? null,
@@ -1871,28 +1828,23 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
   // Data payload passed to the connect menu node. Keep this stable to avoid re-mounts.
   const connectMenuData = useMemo(
     () => ({
-      categories: connectMenuCategories,
-      activeCategory: connectMenuCategory,
-      onSelectCategory: setConnectMenuCategory,
       onClose: () => {
         setConnectMenu(null);
         setConnectingLabel(null);
         setNodes((prev) => prev.filter((node) => node.type !== "rrConnectMenu"));
         setEdges((prev) => prev.filter((edge) => edge.target !== "connect-menu"));
       },
-      nodesByCategory,
+      groupedNodes: compatibleNodesByGroup,
       onPickNode: handleSelectConnectNode,
       getDescription: getNodeDescription,
       meta: "MENU",
-      compatibleNodes: compatibleNodeSet,
+      outputLabel: connectMenu?.outputLabel ?? null,
     }),
     [
-      connectMenuCategories,
-      connectMenuCategory,
-      nodesByCategory,
-      compatibleNodeSet,
+      compatibleNodesByGroup,
       handleSelectConnectNode,
       getNodeDescription,
+      connectMenu,
     ]
   );
 
@@ -2498,7 +2450,9 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
         nodesDraggable={!isCanvasLocked}
         nodesConnectable={!isCanvasLocked}
         onInit={setReactFlowInstance}
-        onMove={(_, nextViewport) => setViewport(nextViewport)}
+        onMove={(_, nextViewport) => {
+          viewportRef.current = nextViewport;
+        }}
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={24} size={1} color="rgba(255,255,255,0.08)" />
@@ -2509,9 +2463,9 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
           style={{
             top: connectPreview.y,
             left: connectPreview.x,
-            width: MENU_NODE_WIDTH * (viewport.zoom ?? 1),
-            height: MENU_NODE_HEIGHT * (viewport.zoom ?? 1),
-            transform: `translate(${MENU_OFFSET_X * (viewport.zoom ?? 1)}px, -50%)`,
+            width: MENU_NODE_WIDTH * (viewportRef.current.zoom ?? 1),
+            height: MENU_NODE_HEIGHT * (viewportRef.current.zoom ?? 1),
+            transform: `translate(${MENU_OFFSET_X * (viewportRef.current.zoom ?? 1)}px, -50%)`,
           }}
         >
           <span className="rr-connect-preview__icon" aria-hidden="true" />

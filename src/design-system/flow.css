@@ -1976,9 +1976,8 @@
   border: var(--border-subtle);
   border-radius: 18px;
   box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45);
-  display: grid;
-  grid-template-columns: 52px 1fr;
-  grid-template-rows: auto 1fr;
+  display: flex;
+  flex-direction: column;
   min-height: 420px;
   overflow: visible;
   position: relative;
@@ -2017,8 +2016,7 @@
 }
 
 .rr-connect-menu-node__header {
-  grid-column: 2 / 3;
-  padding: 16px 20px 0;
+  padding: 16px 20px 6px;
 }
 
 .rr-connect-menu-node__header h3 {
@@ -2027,50 +2025,26 @@
   color: var(--color-text-primary);
 }
 
-.rr-connect-menu-node__categories {
-  grid-row: 1 / span 2;
-  display: grid;
-  gap: 4px;
-  padding: 10px 6px;
-  background: rgba(0, 0, 0, 0.18);
-  border-right: var(--border-subtle);
-  overflow-y: auto;
-}
-
-.rr-connect-menu-node__category {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.06);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  transition: border-color var(--transition-base), background var(--transition-base);
-}
-
-.rr-connect-menu-node__category.is-active {
-  border-color: rgba(var(--color-accent-primary-rgb), 0.6);
-  background: rgba(var(--color-accent-primary-rgb), 0.15);
-}
-
-.rr-connect-menu-node__category img {
-  width: 18px;
-  height: 18px;
-  filter: brightness(0) saturate(100%) invert(85%);
-}
-
 .rr-connect-menu-node__list {
-  padding: 12px 20px 20px;
+  padding: 6px 20px 20px;
   display: grid;
-  gap: 12px;
+  gap: 14px;
   max-height: 420px;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
+.rr-connect-menu-node__section {
+  display: grid;
+  gap: 8px;
+}
+
 .rr-connect-menu-node__section h4 {
-  display: none;
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
 }
 
 .rr-connect-menu-node__item {
@@ -2097,12 +2071,6 @@
   border-color: rgba(var(--color-accent-primary-rgb), 0.4);
   background: rgba(255, 255, 255, 0.04);
   color: var(--color-text-primary);
-}
-
-.rr-connect-menu-node__item.is-disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  pointer-events: none;
 }
 
 .rr-connect-menu-node__icon {
