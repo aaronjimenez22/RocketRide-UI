@@ -441,6 +441,36 @@
   z-index: 120;
 }
 
+.rr-confirm-modal {
+  background: var(--color-bg-secondary);
+  border: var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  max-width: 360px;
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.45);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.rr-confirm-modal__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.rr-confirm-modal__message {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.rr-confirm-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
 .rr-project-modal {
   width: min(1080px, 92vw);
   height: min(680px, 86vh);

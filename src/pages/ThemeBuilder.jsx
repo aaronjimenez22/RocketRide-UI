@@ -5,21 +5,43 @@ import {
   buildThemeTokens,
   buildThemeSwatch,
   getComputedTokenDefaults,
+  getBaseTokensFromTheme,
   normalizeThemeId,
 } from "../utils/themeBuilder.js";
 
 export default function ThemeBuilder({
+  initialTheme = null,
   existingThemeIds = [],
   onSaveTheme,
+  onDeleteTheme,
   onNavigate,
 }) {
-  const [themeName, setThemeName] = useState("");
-  const [themeMeta, setThemeMeta] = useState("Custom theme");
-  const [tokens, setTokens] = useState(() => getComputedTokenDefaults());
+  const baseTokensFromInitial =
+    initialTheme && getBaseTokensFromTheme(initialTheme);
+  const [themeName, setThemeName] = useState(() => initialTheme?.label ?? "");
+  const [themeMeta, setThemeMeta] = useState(
+    () => initialTheme?.meta ?? "Custom theme"
+  );
+  const [tokens, setTokens] = useState(() =>
+    baseTokensFromInitial ? { ...baseTokensFromInitial } : getComputedTokenDefaults()
+  );
   const previousStyles = useRef({});
   const shouldRestore = useRef(true);
 
   const derivedTokens = useMemo(() => buildThemeTokens(tokens), [tokens]);
+
+  useEffect(() => {
+    if (initialTheme) {
+      const base = getBaseTokensFromTheme(initialTheme);
+      setThemeName(initialTheme.label ?? "");
+      setThemeMeta(initialTheme.meta ?? "Custom theme");
+      if (base) setTokens({ ...base });
+    } else {
+      setThemeName("");
+      setThemeMeta("Custom theme");
+      setTokens(getComputedTokenDefaults());
+    }
+  }, [initialTheme?.id]);
 
   useEffect(() => {
     THEME_TOKEN_KEYS.forEach((key) => {
@@ -55,7 +77,8 @@ export default function ThemeBuilder({
   const handleSave = () => {
     const name = themeName.trim();
     if (!name) return;
-    const id = normalizeThemeId(name, existingThemeIds);
+    const id =
+      initialTheme?.id ?? normalizeThemeId(name, existingThemeIds);
     const themeTokens = buildThemeTokens(tokens);
     const newTheme = {
       id,
@@ -68,13 +91,38 @@ export default function ThemeBuilder({
     onSaveTheme?.(newTheme);
   };
 
+  const handleDuplicate = () => {
+    const baseName = themeName.trim() || "Untitled";
+    const copyName = `${baseName} (copy)`;
+    const id = normalizeThemeId(copyName, existingThemeIds);
+    const themeTokens = buildThemeTokens(tokens);
+    const newTheme = {
+      id,
+      label: copyName,
+      meta: themeMeta.trim() || "Custom theme",
+      tokens: themeTokens,
+      swatch: buildThemeSwatch(themeTokens),
+    };
+    shouldRestore.current = false;
+    onSaveTheme?.(newTheme);
+    setThemeName(copyName);
+    setThemeMeta(themeMeta.trim() || "Custom theme");
+  };
+
+  const handleDelete = () => {
+    shouldRestore.current = false;
+    onDeleteTheme?.();
+  };
+
   return (
     <div className="rr-page rr-container rr-theme-builder">
       <section className="rr-theme-builder__panel rr-stack">
         <div className="rr-theme-builder__header">
           <div>
             <p className="rr-label">Theme Builder</p>
-            <h1 className="rr-title">Create a custom theme</h1>
+            <h1 className="rr-title">
+              {initialTheme ? "Edit theme" : "Create a custom theme"}
+            </h1>
             <p className="rr-subtitle">
               Tune core color tokens and preview the system in real time.
             </p>
@@ -82,7 +130,7 @@ export default function ThemeBuilder({
           <button
             type="button"
             className="rr-button rr-button--ghost"
-            onClick={() => onNavigate?.("projects")}
+            onClick={() => onNavigate?.("project-canvas")}
           >
             Back to Projects
           </button>
@@ -135,22 +183,43 @@ export default function ThemeBuilder({
             ))}
           </div>
 
-          <div className="rr-row rr-theme-builder__actions">
-            <button
-              type="button"
-              className="rr-button rr-button--ghost"
-              onClick={() => setTokens(getComputedTokenDefaults())}
-            >
-              Reset to current theme
-            </button>
-            <button
-              type="button"
-              className="rr-button rr-button--primary"
-              onClick={handleSave}
-              disabled={!themeName.trim()}
-            >
-              Save theme
-            </button>
+          <div className="rr-theme-builder__actions-wrap">
+            <div className="rr-row rr-theme-builder__actions">
+              <button
+                type="button"
+                className="rr-button rr-button--ghost"
+                onClick={() => setTokens(getComputedTokenDefaults())}
+              >
+                Reset to current theme
+              </button>
+              <div className="rr-row rr-theme-builder__actions-right">
+                {onDeleteTheme && (
+                  <button
+                    type="button"
+                    className="rr-button rr-button--ghost rr-button--danger"
+                    onClick={handleDelete}
+                  >
+                    Delete
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="rr-button rr-button--ghost"
+                  onClick={handleDuplicate}
+                  disabled={!themeName.trim()}
+                >
+                  Duplicate
+                </button>
+                <button
+                  type="button"
+                  className="rr-button rr-button--primary"
+                  onClick={handleSave}
+                  disabled={!themeName.trim()}
+                >
+                  Save theme
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>

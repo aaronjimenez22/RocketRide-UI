@@ -138,7 +138,10 @@ export default function Sidebar({
   theme,
   onThemeChange,
   themeOptions = [],
+  baseThemeIds,
   onCreateTheme,
+  onEditTheme,
+  onDeleteTheme,
 }) {
   const {
     projects,
@@ -161,6 +164,7 @@ export default function Sidebar({
   const [createOpen, setCreateOpen] = useState(false);
   const [templateQuery, setTemplateQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("Recommended");
+  const [deleteConfirmTheme, setDeleteConfirmTheme] = useState(null);
   const [sourceRunStates, setSourceRunStates] = useState({});
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [projectOrder, setProjectOrder] = useState(() =>
@@ -703,29 +707,79 @@ export default function Sidebar({
             </button>
             {themeOpen && (
               <div className="rr-sidebar__popover rr-sidebar__popover--theme">
-                {themeOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    className={`rr-sidebar__theme-option ${
-                      theme === option.id ? "is-active" : ""
-                    }`}
-                    onClick={() => {
-                      onThemeChange(option.id);
-                      setThemeOpen(false);
-                    }}
-                  >
-                    <span
-                      className="rr-sidebar__theme-swatch"
-                      data-theme={option.swatch ? undefined : option.id}
-                      style={option.swatch ? { background: option.swatch } : undefined}
-                    />
-                    <span className="rr-sidebar__theme-text">
-                      <span className="rr-sidebar__theme-name">{option.label}</span>
-                      <span className="rr-sidebar__theme-meta">{option.meta}</span>
-                    </span>
-                  </button>
-                ))}
+                {themeOptions.map((option) => {
+                  const isCustom = baseThemeIds && !baseThemeIds.includes(option.id);
+                  return (
+                    <div
+                      key={option.id}
+                      className={`rr-sidebar__theme-option-wrap ${
+                        theme === option.id ? "is-active" : ""
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="rr-sidebar__theme-option"
+                        onClick={() => {
+                          onThemeChange(option.id);
+                          setThemeOpen(false);
+                        }}
+                      >
+                        <span
+                          className="rr-sidebar__theme-swatch"
+                          data-theme={option.swatch ? undefined : option.id}
+                          style={option.swatch ? { background: option.swatch } : undefined}
+                        />
+                        <span className="rr-sidebar__theme-text">
+                          <span className="rr-sidebar__theme-name">{option.label}</span>
+                          <span className="rr-sidebar__theme-meta">{option.meta}</span>
+                        </span>
+                      </button>
+                      {isCustom && (onEditTheme || onDeleteTheme) && (
+                        <div className="rr-sidebar__theme-option-actions">
+                          {onEditTheme && (
+                            <button
+                              type="button"
+                              className="rr-sidebar__theme-action"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditTheme(option.id);
+                                setThemeOpen(false);
+                              }}
+                              aria-label={`Edit ${option.label}`}
+                            >
+                              <span className="rr-icon">
+                                <span
+                                  className="rr-icon-image"
+                                  style={{ "--rr-icon-url": `url(${iconUrl("edit")})` }}
+                                  aria-hidden="true"
+                                />
+                              </span>
+                            </button>
+                          )}
+                          {onDeleteTheme && (
+                            <button
+                              type="button"
+                              className="rr-sidebar__theme-action rr-sidebar__theme-action--danger"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteConfirmTheme(option);
+                              }}
+                              aria-label={`Delete ${option.label}`}
+                            >
+                              <span className="rr-icon">
+                                <span
+                                  className="rr-icon-image"
+                                  style={{ "--rr-icon-url": `url(${iconUrl("trash")})` }}
+                                  aria-hidden="true"
+                                />
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 <div className="rr-sidebar__theme-actions">
                   <button
                     type="button"
@@ -784,6 +838,43 @@ export default function Sidebar({
           />
         )}
       </aside>
+
+      {deleteConfirmTheme && (
+        <div
+          className="rr-modal-overlay rr-modal-overlay--confirm"
+          onClick={() => setDeleteConfirmTheme(null)}
+        >
+          <div
+            className="rr-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="rr-confirm-modal__title">R U sure?</h3>
+            <p className="rr-confirm-modal__message">
+              Delete &quot;{deleteConfirmTheme.label}&quot;? This can&apos;t be undone.
+            </p>
+            <div className="rr-confirm-modal__actions">
+              <button
+                type="button"
+                className="rr-button rr-button--ghost"
+                onClick={() => setDeleteConfirmTheme(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rr-button rr-button--danger"
+                onClick={() => {
+                  onDeleteTheme?.(deleteConfirmTheme.id);
+                  setDeleteConfirmTheme(null);
+                  setThemeOpen(false);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {createOpen && (
         <div className="rr-modal-overlay" onClick={() => setCreateOpen(false)}>

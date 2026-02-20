@@ -48,6 +48,17 @@
   color: var(--color-text-primary);
 }
 
+.rr-button--danger {
+  background: rgba(220, 53, 69, 0.25);
+  border-color: rgba(220, 53, 69, 0.5);
+  color: #f87171;
+}
+
+.rr-button--danger:hover {
+  background: rgba(220, 53, 69, 0.4);
+  border-color: rgba(220, 53, 69, 0.7);
+}
+
 .rr-card {
   background: var(--color-bg-secondary);
   border: var(--border-subtle);

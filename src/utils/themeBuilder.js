@@ -121,6 +121,20 @@ export const getComputedTokenDefaults = () => {
   return defaults;
 };
 
+export const getBaseTokensFromTheme = (theme) => {
+  if (!theme?.tokens) return null;
+  const result = {};
+  THEME_COLOR_TOKENS.forEach(({ key }) => {
+    const value = theme.tokens[key];
+    if (value == null) return;
+    result[key] =
+      typeof value === "string" && value.startsWith("#")
+        ? value
+        : rgbStringToHex(value);
+  });
+  return result;
+};
+
 export const buildThemeSwatch = (tokens) => {
   const accentPrimary = tokens["--color-accent-primary"];
   const accentSecondary = tokens["--color-accent-secondary"];

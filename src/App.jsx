@@ -13,8 +13,11 @@ import {
   buildThemeSwatch,
 } from "./utils/themeBuilder.js";
 
+const BASE_THEME_IDS = ["tungsten", "singularity", "orbital", "interstellar", "nebula"];
+
 export default function App() {
   const [activeView, setActiveView] = useState("project-canvas");
+  const [themeToEdit, setThemeToEdit] = useState(null);
   const [theme, setTheme] = useState(
     () => localStorage.getItem("rr-theme") ?? "tungsten"
   );
@@ -73,6 +76,11 @@ export default function App() {
       case "theme-builder":
         return (
           <ThemeBuilder
+            initialTheme={
+              themeToEdit
+                ? customThemes.find((t) => t.id === themeToEdit) ?? null
+                : null
+            }
             existingThemeIds={themeOptions.map((option) => option.id)}
             onSaveTheme={(newTheme) => {
               setCustomThemes((prev) => {
@@ -85,8 +93,29 @@ export default function App() {
                 return next;
               });
               setTheme(newTheme.id);
+              setThemeToEdit(null);
             }}
-            onNavigate={setActiveView}
+            onDeleteTheme={
+              themeToEdit
+                ? () => {
+                    if (theme === themeToEdit) setTheme("tungsten");
+                    setCustomThemes((prev) => {
+                      const next = prev.filter((t) => t.id !== themeToEdit);
+                      localStorage.setItem(
+                        CUSTOM_THEME_STORAGE_KEY,
+                        JSON.stringify(next)
+                      );
+                      return next;
+                    });
+                    setThemeToEdit(null);
+                    setActiveView("project-canvas");
+                  }
+                : null
+            }
+            onNavigate={(view) => {
+              setActiveView(view);
+              if (view !== "theme-builder") setThemeToEdit(null);
+            }}
           />
         );
       case "api-keys":
@@ -103,7 +132,7 @@ export default function App() {
           />
         );
     }
-  }, [activeView, flowOptions, activeProjectId]);
+  }, [activeView, flowOptions, activeProjectId, themeToEdit, customThemes, theme, themeOptions]);
 
   const isCanvas = activeView === "project-canvas";
 
@@ -131,7 +160,26 @@ export default function App() {
         theme={theme}
         onThemeChange={setTheme}
         themeOptions={themeOptions}
-        onCreateTheme={() => setActiveView("theme-builder")}
+        baseThemeIds={BASE_THEME_IDS}
+        onCreateTheme={() => {
+          setThemeToEdit(null);
+          setActiveView("theme-builder");
+        }}
+        onEditTheme={(themeId) => {
+          setThemeToEdit(themeId);
+          setActiveView("theme-builder");
+        }}
+        onDeleteTheme={(themeId) => {
+          if (theme === themeId) setTheme("tungsten");
+          setCustomThemes((prev) => {
+            const next = prev.filter((t) => t.id !== themeId);
+            localStorage.setItem(
+              CUSTOM_THEME_STORAGE_KEY,
+              JSON.stringify(next)
+            );
+            return next;
+          });
+        }}
       />
       <main className={`rr-main ${isCanvas ? "is-canvas" : ""}`}>
         {mainContent}
