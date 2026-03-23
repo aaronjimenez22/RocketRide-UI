@@ -11,6 +11,7 @@ import FlowEdge from "../components/FlowEdge";
 import { iconNames, iconUrl, getIconForKey } from "../utils/iconLibrary";
 import { useProjects } from "../state/projectsStore.jsx";
 import ConnectMenuNode from "../components/ConnectMenuNode.jsx";
+import DropperWorkspace from "../components/DropperWorkspace.jsx";
 
 const initialNodes = [
   {
@@ -150,6 +151,12 @@ const initialEdges = [
     targetHandle: "output:output-in",
   },
 ];
+
+const DEFAULT_DROPPER_WORKSPACE = {
+  view: "build",
+  files: [],
+  selectedFileId: null,
+};
 
 const NODE_GROUPS = [
   {
@@ -978,6 +985,217 @@ const buildConfigSections = (label, groupId) => {
   return sections;
 };
 
+const getDropperWorkspace = (workspace) => ({
+  ...DEFAULT_DROPPER_WORKSPACE,
+  ...(workspace ?? {}),
+  files: workspace?.files ?? [],
+});
+
+const slugToTitle = (value) =>
+  value
+    .split(/[-_]/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+const inferExtension = (name, type = "") => {
+  const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
+  if (ext) return ext;
+  if (type.startsWith("image/")) return type.replace("image/", "");
+  if (type.startsWith("video/")) return type.replace("video/", "");
+  if (type === "application/pdf") return "pdf";
+  return "file";
+};
+
+const svgDataUrl = (label, accent = "#ff8a3c", background = "#1a1b1d") =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+      <rect width="640" height="360" rx="28" fill="${background}"/>
+      <rect x="32" y="32" width="576" height="296" rx="24" fill="rgba(255,255,255,0.06)" stroke="${accent}" stroke-width="4" stroke-dasharray="12 12"/>
+      <circle cx="188" cy="148" r="38" fill="${accent}" opacity="0.18"/>
+      <path d="M142 244l72-74 48 50 88-102 110 126H142z" fill="${accent}" opacity="0.7"/>
+      <text x="50%" y="304" text-anchor="middle" fill="#ffffff" font-size="30" font-family="Arial, sans-serif">${label}</text>
+    </svg>
+  `)}`;
+
+const longNarrative = (displayName) =>
+  [
+    `${displayName} was parsed through the Dropper workflow and expanded into a richer simulated result set for layout validation.`,
+    "The generated content intentionally includes multiple sections, repeated observations, and longer narrative blocks so the Results panel can demonstrate vertical scrolling without requiring live backend parsing.",
+    "Each section mirrors the sort of extraction you would expect from a document pipeline: executive summary, structured findings, normalization notes, downstream recommendations, and payload previews.",
+    "This content is deterministic and browser-local. It is not pulled from a server, but it is shaped to feel like a realistic post-parse payload for design and interaction testing.",
+  ].join("\n\n");
+
+const createExtractedContent = ({ name, extension, type, size }) => {
+  const stem = name.replace(/\.[^.]+$/, "") || name;
+  const displayName = slugToTitle(stem);
+  const lowerExt = extension.toLowerCase();
+
+  if (type.startsWith("image/") || ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(lowerExt)) {
+    const src = svgDataUrl(displayName, "#ff8a3c", "#151515");
+    return {
+      availableTabs: ["image", "json"],
+      extracted: {
+        image: { src, alt: name },
+        json: JSON.stringify(
+          {
+            file: name,
+            kind: "image",
+            dimensions: "2048x1365",
+            palette: ["accent-primary", "surface-node", "text-primary"],
+            detectedObjects: ["product", "document", "brand mark"],
+          },
+          null,
+          2
+        ),
+      },
+    };
+  }
+
+  if (type.startsWith("video/") || ["mp4", "mov", "webm"].includes(lowerExt)) {
+    const poster = svgDataUrl(`${displayName} Preview`, "#ff8a3c", "#0f1114");
+    return {
+      availableTabs: ["video", "json", "text"],
+      extracted: {
+        video: {
+          poster,
+          title: name,
+          duration: "00:42",
+          description: `Simulated scene breakdown and transcript summary for ${displayName}.`,
+        },
+        text: `${displayName} opens with a branded intro, transitions into a product walkthrough, and closes with a call to action.`,
+        json: JSON.stringify(
+          {
+            file: name,
+            kind: "video",
+            scenes: 4,
+            transcriptConfidence: 0.97,
+            keyFrames: ["Intro", "Feature Demo", "Proof Point", "CTA"],
+          },
+          null,
+          2
+        ),
+      },
+    };
+  }
+
+  if (lowerExt === "json") {
+    return {
+      availableTabs: ["json", "text"],
+      extracted: {
+        json: JSON.stringify(
+          {
+            file: name,
+            records: 12,
+            schema: ["id", "title", "status", "owner"],
+            sample: {
+              id: "rec_001",
+              title: `${displayName} payload`,
+              status: "processed",
+              owner: "RocketRide",
+            },
+          },
+          null,
+          2
+        ),
+        text: `${displayName} JSON payload was normalized into 12 records with a stable schema.\n\n${longNarrative(
+          displayName
+        )}\n\nKey observations:\n- Schema remained stable across all records\n- Owner references were normalized\n- Status values were mapped to a shared enum\n- Output is ready for downstream automation`,
+      },
+    };
+  }
+
+  if (["csv", "xls", "xlsx"].includes(lowerExt)) {
+    return {
+      availableTabs: ["table", "json", "text"],
+      extracted: {
+        table: {
+          columns: ["Column", "Type", "Example"],
+          rows: [
+            ["customer_name", "string", "Acme Corp"],
+            ["order_total", "number", "$4,250"],
+            ["created_at", "date", "2026-03-18"],
+          ],
+        },
+        json: JSON.stringify(
+          {
+            file: name,
+            rowsParsed: 184,
+            columns: 9,
+            delimiter: ",",
+          },
+          null,
+          2
+        ),
+        text: `${displayName} was parsed into a structured table with 184 rows and 9 columns.\n\n${longNarrative(
+          displayName
+        )}\n\nThe parser also inferred a header row, normalized date formats, and identified summary statistics for the primary numeric fields.`,
+      },
+    };
+  }
+
+  return {
+    availableTabs: ["markdown", "text", "table", "json"],
+    extracted: {
+      markdown: `# ${displayName}
+
+## Summary
+
+- File: ${name}
+- Size: ${size} bytes
+- Mode: Simulated Dropper extraction
+
+## Highlights
+
+This document was ingested through the Dropper workspace and expanded into markdown, text, table, and JSON views.
+
+## Extraction Notes
+
+${longNarrative(displayName)}
+
+## Detailed Findings
+
+1. Document sections were segmented and normalized into a consistent structure.
+2. Inline entities, metadata, and likely headings were identified for downstream routing.
+3. A tabular preview and machine-readable JSON payload were generated alongside the narrative text output.
+4. The content length here is intentionally extended so the results panel shows a realistic scrolling experience.
+
+## Recommended Next Steps
+
+- Route this payload into summarization
+- Pass normalized sections into embedding
+- Archive source artifacts after validation
+- Return structured outputs to the UI layer`,
+      text: `${displayName} was processed successfully. Structured extraction identified sections, metadata, and a preview representation for downstream steps.\n\n${longNarrative(
+        displayName
+      )}\n\nAdditional notes:\n- Metadata was normalized for downstream routing\n- Table previews were generated for quick inspection\n- JSON output was prepared for programmatic use\n- The extended body is included specifically to test scrolling in the Results panel`,
+      table: {
+        columns: ["Field", "Value"],
+        rows: [
+          ["Document Name", name],
+          ["Extension", lowerExt || "unknown"],
+          ["Status", "Ready"],
+        ],
+      },
+      json: JSON.stringify(
+        {
+          file: name,
+          kind: "document",
+          summary: `${displayName} extracted successfully`,
+          outputs: ["markdown", "text", "table", "json"],
+          paragraphs: [
+            longNarrative(displayName),
+            "The payload includes verbose result sections for UI validation.",
+            "No network request was required to generate this sample extraction.",
+          ],
+        },
+        null,
+        2
+      ),
+    },
+  };
+};
+
 export default function ProjectsCanvas({ flowOptions, projectId }) {
   const { projects, updateProject } = useProjects();
   const activeProject =
@@ -1019,6 +1237,10 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
   const [projectIconColor, setProjectIconColor] = useState(
     activeProject?.iconColor ?? "#ffffff"
   );
+  const [dropperWorkspace, setDropperWorkspace] = useState(() =>
+    getDropperWorkspace(activeProject?.dropperWorkspace)
+  );
+  const [activeResultTab, setActiveResultTab] = useState("markdown");
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
   const viewportRef = useRef({ zoom: 1 });
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -1048,12 +1270,14 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
   const shortcutsRef = useRef(null);
   const saveRef = useRef(null);
   const iconRef = useRef(null);
+  const toolbarRef = useRef(null);
   const inventoryRef = useRef(null);
   const configRef = useRef(null);
   const drawerRef = useRef(null);
   const saveTimerRef = useRef(null);
   const titleInputRef = useRef(null);
   const previousTitleRef = useRef(projectTitle);
+  const dropperTimersRef = useRef({});
 
   // Reset per-project analytics/run state when switching projects.
   useEffect(() => {
@@ -1064,10 +1288,22 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     setSelectedNodeId(null);
     setDrawerOpen(false);
     setDrawerTab("output");
+    setDropperWorkspace(getDropperWorkspace(activeProject?.dropperWorkspace));
+    setActiveResultTab("markdown");
+  }, [activeProject?.id]);
+
+  useEffect(() => {
+    Object.values(dropperTimersRef.current).forEach((timers) => {
+      timers.forEach((timer) => clearTimeout(timer));
+    });
+    dropperTimersRef.current = {};
   }, [activeProject?.id]);
 
   useEffect(() => {
     return () => {
+      Object.values(dropperTimersRef.current).forEach((timers) => {
+        timers.forEach((timer) => clearTimeout(timer));
+      });
       if (runTimersRef.current.loading) {
         clearTimeout(runTimersRef.current.loading);
       }
@@ -1219,6 +1455,143 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     ]
   );
 
+  const updateDropperWorkspace = useCallback((updater) => {
+    setDropperWorkspace((prev) => {
+      const resolved = typeof updater === "function" ? updater(prev) : updater;
+      return getDropperWorkspace(resolved);
+    });
+  }, []);
+
+  const openDropperWorkspace = useCallback(
+    (nodeId = null) => {
+      if (nodeId) {
+        setSelectedNodeId(nodeId);
+      }
+      setConfigOpen(false);
+      setDrawerOpen(false);
+      setInventoryOpen(false);
+      updateDropperWorkspace((prev) => ({
+        ...prev,
+        view: "results",
+      }));
+    },
+    [updateDropperWorkspace]
+  );
+
+  const scheduleDropperSimulation = useCallback((fileItems) => {
+    fileItems.forEach((file, index) => {
+      const totalSteps = 6 + (file.name.length % 5);
+      const tickMs = 180 + index * 40;
+      const failFile = file.extension === "exe" || file.size > 15 * 1024 * 1024;
+
+      let step = 0;
+      const intervalId = window.setInterval(() => {
+        step += 1;
+        const progress = Math.min(96, Math.round((step / totalSteps) * 100));
+        const loadedBytes = Math.max(
+          1,
+          Math.round(file.size * Math.min(progress / 100, 0.96))
+        );
+
+        updateDropperWorkspace((prev) => ({
+          ...prev,
+          files: prev.files.map((item) =>
+            item.id === file.id
+              ? { ...item, loadedBytes, progress, status: "uploading" }
+              : item
+          ),
+        }));
+
+        if (step < totalSteps) return;
+
+        clearInterval(intervalId);
+        const finalizeId = window.setTimeout(() => {
+          const nextState = failFile
+            ? {
+                status: "error",
+                loadedBytes: Math.round(file.size * 0.42),
+                progress: 42,
+                completedAt: null,
+              }
+            : {
+                ...createExtractedContent(file),
+                status: "completed",
+                loadedBytes: file.size,
+                progress: 100,
+                completedAt: new Date().toISOString(),
+              };
+
+          updateDropperWorkspace((prev) => ({
+            ...prev,
+            files: prev.files.map((item) =>
+              item.id === file.id ? { ...item, ...nextState } : item
+            ),
+          }));
+          delete dropperTimersRef.current[file.id];
+        }, 260 + index * 80);
+
+        dropperTimersRef.current[file.id] = [intervalId, finalizeId];
+      }, tickMs);
+
+      dropperTimersRef.current[file.id] = [intervalId];
+    });
+  }, [updateDropperWorkspace]);
+
+  const handleAddDropperFiles = useCallback(
+    (selectedFiles) => {
+      const nextItems = selectedFiles.map((file, index) => {
+        const extension = inferExtension(file.name, file.type);
+        return {
+          id: `drop-${Date.now()}-${index}-${Math.floor(Math.random() * 1000)}`,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          extension,
+          status: "uploading",
+          loadedBytes: 0,
+          progress: 0,
+          completedAt: null,
+          extracted: {},
+          availableTabs: [],
+        };
+      });
+
+      updateDropperWorkspace((prev) => ({
+        ...prev,
+        view: "results",
+        files: [...nextItems, ...prev.files],
+        selectedFileId: prev.selectedFileId ?? nextItems[0]?.id ?? null,
+      }));
+      scheduleDropperSimulation(nextItems);
+    },
+    [scheduleDropperSimulation, updateDropperWorkspace]
+  );
+
+  const handleSelectDropperFile = useCallback((fileId) => {
+    updateDropperWorkspace((prev) => ({
+      ...prev,
+      selectedFileId: fileId,
+    }));
+  }, [updateDropperWorkspace]);
+
+  const handleDeleteDropperFile = useCallback((fileId) => {
+    const timers = dropperTimersRef.current[fileId];
+    if (timers) {
+      timers.forEach((timer) => clearTimeout(timer));
+      delete dropperTimersRef.current[fileId];
+    }
+    updateDropperWorkspace((prev) => {
+      const nextFiles = prev.files.filter((file) => file.id !== fileId);
+      const nextSelectedId =
+        prev.selectedFileId === fileId ? nextFiles[0]?.id ?? null : prev.selectedFileId;
+      return {
+        ...prev,
+        files: nextFiles,
+        selectedFileId: nextSelectedId,
+      };
+    });
+  }, [updateDropperWorkspace]);
+
   // Persist new edge connections and clear any transient menu/preview state.
   const onConnect = (connection) => {
     if (isCanvasLocked) return;
@@ -1348,10 +1721,11 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
               ? sourceRunStates[node.id] ?? "idle"
               : undefined,
             onRun: isSourceNode ? handleRunPipeline : undefined,
+            onOpenDropper: node.data?.title === "Dropper" ? openDropperWorkspace : undefined,
           },
         };
       }),
-    [nodes, connectedPorts, connectingLabel, sourceRunStates, handleRunPipeline]
+    [nodes, connectedPorts, connectingLabel, sourceRunStates, handleRunPipeline, openDropperWorkspace]
   );
 
   const pipelineEdgeSet = useMemo(
@@ -1414,8 +1788,15 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
       const clickedShortcuts = shortcutsRef.current?.contains(event.target);
       const clickedSave = saveRef.current?.contains(event.target);
       const clickedIcon = iconRef.current?.contains(event.target);
+      const clickedToolbar = toolbarRef.current?.contains(event.target);
       const clickedInventory = inventoryRef.current?.contains(event.target);
-      if (clickedShortcuts || clickedSave || clickedIcon || clickedInventory) {
+      if (
+        clickedShortcuts ||
+        clickedSave ||
+        clickedIcon ||
+        clickedToolbar ||
+        clickedInventory
+      ) {
         return;
       }
       setShortcutsOpen(false);
@@ -1480,9 +1861,14 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
   }, [projectId]);
 
   useEffect(() => {
-    if (!activeProject) return;
+    if (!activeProject?.id) return;
     updateProject(activeProject.id, { nodes, edges });
-  }, [nodes, edges, activeProject, updateProject]);
+  }, [nodes, edges, activeProject?.id, updateProject]);
+
+  useEffect(() => {
+    if (!activeProject?.id) return;
+    updateProject(activeProject.id, { dropperWorkspace });
+  }, [dropperWorkspace, activeProject?.id, updateProject]);
 
   const filteredGroups = useMemo(() => {
     const query = inventoryQuery.trim().toLowerCase();
@@ -1568,6 +1954,8 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
     () => nodes.find((node) => node.id === selectedNodeId) ?? null,
     [nodes, selectedNodeId]
   );
+  const isSelectedDropperNode = selectedNode?.data?.title === "Dropper";
+  const canvasMode = dropperWorkspace.view ?? "build";
 
   const selectedNodeGroup = useMemo(() => {
     if (!selectedNode?.data?.title) return null;
@@ -1949,6 +2337,13 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
   };
 
   const latestRun = pipelineRuns[0] ?? null;
+  const selectedDropperFile = useMemo(
+    () =>
+      dropperWorkspace.files.find((file) => file.id === dropperWorkspace.selectedFileId) ??
+      dropperWorkspace.files[0] ??
+      null,
+    [dropperWorkspace]
+  );
   const avgDuration = pipelineRuns.length
     ? Math.round(
         pipelineRuns.reduce((sum, run) => sum + run.duration, 0) /
@@ -1962,6 +2357,75 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
           pipelineRuns.length
       )
     : 0;
+  const activeDropperTab = useMemo(() => {
+    const availableTabs = selectedDropperFile?.availableTabs ?? [];
+    if (!availableTabs.length) return null;
+    return availableTabs.includes(activeResultTab) ? activeResultTab : availableTabs[0];
+  }, [selectedDropperFile, activeResultTab]);
+
+  useEffect(() => {
+    const availableTabs = selectedDropperFile?.availableTabs ?? [];
+    if (!availableTabs.length) {
+      setActiveResultTab("markdown");
+      return;
+    }
+    if (!availableTabs.includes(activeResultTab)) {
+      setActiveResultTab(availableTabs[0]);
+    }
+  }, [selectedDropperFile, activeResultTab]);
+
+  const handleCopyDropperContent = useCallback(async () => {
+    if (!selectedDropperFile || !activeDropperTab) return;
+    const payload = selectedDropperFile.extracted?.[activeDropperTab];
+    if (!payload || !navigator?.clipboard) return;
+    const value =
+      typeof payload === "string"
+        ? payload
+        : JSON.stringify(payload, null, 2);
+    await navigator.clipboard.writeText(value);
+  }, [selectedDropperFile, activeDropperTab]);
+
+  const handleDownloadDropperContent = useCallback(() => {
+    if (!selectedDropperFile || !activeDropperTab) return;
+    const payload = selectedDropperFile.extracted?.[activeDropperTab];
+    if (!payload) return;
+
+    let contents = "";
+    let mime = "text/plain;charset=utf-8";
+    let extension = "txt";
+
+    if (activeDropperTab === "markdown") {
+      contents = payload;
+      extension = "md";
+    } else if (activeDropperTab === "json") {
+      contents = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+      mime = "application/json;charset=utf-8";
+      extension = "json";
+    } else if (activeDropperTab === "table") {
+      const rows = [payload.columns, ...payload.rows];
+      contents = rows.map((row) => row.join(",")).join("\n");
+      mime = "text/csv;charset=utf-8";
+      extension = "csv";
+    } else if (activeDropperTab === "image") {
+      contents = payload.src;
+      mime = "image/svg+xml;charset=utf-8";
+      extension = "svg";
+    } else if (activeDropperTab === "video") {
+      contents = JSON.stringify(payload, null, 2);
+      mime = "application/json;charset=utf-8";
+      extension = "json";
+    } else {
+      contents = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+    }
+
+    const blob = new Blob([contents], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${selectedDropperFile.name.replace(/\.[^.]+$/, "")}-${activeDropperTab}.${extension}`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [selectedDropperFile, activeDropperTab]);
 
   return (
     <div className="rr-canvas">
@@ -2115,6 +2579,28 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
             </div>
           </div>
 
+          <div className="rr-canvas-tabs" role="tablist" aria-label="Canvas views">
+            {[
+              ["build", "Build", "sliders"],
+              ["results", "Results", "article"],
+            ].map(([key, label, icon]) => (
+              <button
+                key={key}
+                type="button"
+                className={`rr-canvas-tab ${canvasMode === key ? "is-active" : ""}`}
+                onClick={() =>
+                  updateDropperWorkspace((prev) => ({
+                    ...prev,
+                    view: key,
+                  }))
+                }
+              >
+                <img src={iconUrl(icon)} alt="" />
+                {label}
+              </button>
+            ))}
+          </div>
+
           <div className="rr-canvas-header__right">
             <div className="rr-canvas-header__menu" ref={shortcutsRef}>
               <button
@@ -2205,259 +2691,277 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
         </header>
 
         {/* Bottom toolbar stays fixed in viewport; actions are UI-only for now. */}
-        <div
-          className="rr-canvas-toolbar"
-          style={{
-            "--rr-toolbar-offset": `${(drawerOpen ? drawerHeight : 46) + 16}px`,
-          }}
-        >
-          {[
-            { id: "add-node", label: "Add Node", icon: "add-box", primary: true },
-            { id: "add-comment", label: "Add Comment", icon: "note" },
-            { id: "log-history", label: "Log History", icon: "clock" },
-          ].map((item) => (
+        {canvasMode === "build" && (
+          <div
+            ref={toolbarRef}
+            className="rr-canvas-toolbar"
+            style={{
+              "--rr-toolbar-offset": `${(drawerOpen ? drawerHeight : 46) + 16}px`,
+            }}
+          >
+            {[
+              { id: "add-node", label: "Add Node", icon: "add-box", primary: true },
+              { id: "add-comment", label: "Add Comment", icon: "note" },
+              { id: "log-history", label: "Log History", icon: "clock" },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`rr-canvas-tool ${item.primary ? "is-primary" : ""}`}
+                data-tooltip={item.label}
+                onClick={
+                  item.id === "add-node"
+                    ? () => {
+                        if (isCanvasLocked) return;
+                        setInventoryOpen((value) => !value);
+                      }
+                    : undefined
+                }
+              >
+                <img src={iconUrl(item.icon)} alt="" />
+              </button>
+            ))}
+            <div className="rr-canvas-toolbar__divider" />
             <button
-              key={item.id}
               type="button"
-              className={`rr-canvas-tool ${item.primary ? "is-primary" : ""}`}
-              data-tooltip={item.label}
-              onClick={
-                item.id === "add-node"
-                  ? () => {
-                      if (isCanvasLocked) return;
-                      setInventoryOpen((value) => !value);
-                    }
-                  : undefined
-              }
+              className="rr-canvas-tool"
+              data-tooltip={nodesLocked ? "Unlock Nodes" : "Lock Nodes"}
+              onClick={() => setNodesLocked((value) => !value)}
             >
-              <img src={iconUrl(item.icon)} alt="" />
+              <img
+                src={iconUrl(nodesLocked ? "lock" : "lock-open")}
+                alt=""
+              />
             </button>
-          ))}
-          <div className="rr-canvas-toolbar__divider" />
-          <button
-            type="button"
-            className="rr-canvas-tool"
-            data-tooltip={nodesLocked ? "Unlock Nodes" : "Lock Nodes"}
-            onClick={() => setNodesLocked((value) => !value)}
-          >
-            <img
-              src={iconUrl(nodesLocked ? "lock" : "lock-open")}
-              alt=""
-            />
-          </button>
-          <button
-            type="button"
-            className="rr-canvas-tool"
-            data-tooltip="Fit View"
-            onClick={() => reactFlowInstance?.fitView({ padding: 0.2 })}
-          >
-            <img src={iconUrl("scale")} alt="" />
-          </button>
-          <button
-            type="button"
-            className="rr-canvas-tool"
-            data-tooltip="Zoom Out"
-            onClick={() => reactFlowInstance?.zoomOut()}
-          >
-            <img src={iconUrl("zoom-out")} alt="" />
-          </button>
-          <button
-            type="button"
-            className="rr-canvas-tool"
-            data-tooltip="Zoom In"
-            onClick={() => reactFlowInstance?.zoomIn()}
-          >
-            <img src={iconUrl("zoom-in")} alt="" />
-          </button>
-          <button
-            type="button"
-            className="rr-canvas-tool"
-            data-tooltip="Undo"
-          >
-            <img src={iconUrl("undo")} alt="" />
-          </button>
-          <button
-            type="button"
-            className="rr-canvas-tool"
-            data-tooltip="Redo"
-          >
-            <img src={iconUrl("redo")} alt="" />
-          </button>
-        </div>
+            <button
+              type="button"
+              className="rr-canvas-tool"
+              data-tooltip="Fit View"
+              onClick={() => reactFlowInstance?.fitView({ padding: 0.2 })}
+            >
+              <img src={iconUrl("scale")} alt="" />
+            </button>
+            <button
+              type="button"
+              className="rr-canvas-tool"
+              data-tooltip="Zoom Out"
+              onClick={() => reactFlowInstance?.zoomOut()}
+            >
+              <img src={iconUrl("zoom-out")} alt="" />
+            </button>
+            <button
+              type="button"
+              className="rr-canvas-tool"
+              data-tooltip="Zoom In"
+              onClick={() => reactFlowInstance?.zoomIn()}
+            >
+              <img src={iconUrl("zoom-in")} alt="" />
+            </button>
+            <button
+              type="button"
+              className="rr-canvas-tool"
+              data-tooltip="Undo"
+            >
+              <img src={iconUrl("undo")} alt="" />
+            </button>
+            <button
+              type="button"
+              className="rr-canvas-tool"
+              data-tooltip="Redo"
+            >
+              <img src={iconUrl("redo")} alt="" />
+            </button>
+          </div>
+        )}
       </div>
       {/* Pipeline builder view: inventory, canvas, node config panel, and runtime drawer. */}
-      <aside
-        ref={inventoryRef}
-        className={`rr-node-inventory ${inventoryOpen ? "is-open" : ""}`}
-      >
-        <div className="rr-node-inventory__header">
-          <h2>Node Inventory</h2>
-          <button
-            type="button"
-            className="rr-node-inventory__close"
-            onClick={() => setInventoryOpen(false)}
+      {canvasMode === "build" ? (
+        <>
+          <aside
+            ref={inventoryRef}
+            className={`rr-node-inventory ${inventoryOpen ? "is-open" : ""}`}
           >
-            <img src={iconUrl("close")} alt="" />
-          </button>
-        </div>
-        <div className="rr-node-inventory__search">
-          <img src={iconUrl("search")} alt="" />
-          <input
-            type="text"
-            value={inventoryQuery}
-            onChange={(event) => setInventoryQuery(event.target.value)}
-            placeholder="Search nodes"
-          />
-        </div>
-        <div className="rr-node-inventory__list">
-          {filteredGroups.map((group) => {
-            const collapsed = collapsedGroups.has(group.id);
-            const showNodes = !collapsed || inventoryQuery.trim().length > 0;
-            return (
-              <div key={group.id} className="rr-node-group">
-                <button
-                  type="button"
-                  className="rr-node-group__toggle"
-                  onClick={() => toggleGroup(group.id)}
-                >
-                  <span>{group.label}</span>
-                  <img
-                    src={iconUrl(collapsed ? "chevron-right" : "chevron-down")}
-                    alt=""
-                  />
-                </button>
-                {showNodes && (
-                  <div className="rr-node-group__items">
-                    {group.nodes.map((node) => {
-                      const icon = getIconForKey(node);
-                      return (
-                        <button
-                          key={node}
-                          type="button"
-                          className="rr-node-item"
-                          onClick={() => addInventoryNode(node, group.id)}
-                          onMouseEnter={(event) =>
-                            showInventoryTooltip(event, node)
-                          }
-                          onMouseLeave={hideInventoryTooltip}
-                        >
-                          <span className="rr-node-item__icon">
-                            <img src={icon.url} alt="" />
-                          </span>
-                          <span className="rr-node-item__label">{node}</span>
-                        </button>
-                      );
-                    })}
+            <div className="rr-node-inventory__header">
+              <h2>Node Inventory</h2>
+              <button
+                type="button"
+                className="rr-node-inventory__close"
+                onClick={() => setInventoryOpen(false)}
+              >
+                <img src={iconUrl("close")} alt="" />
+              </button>
+            </div>
+            <div className="rr-node-inventory__search">
+              <img src={iconUrl("search")} alt="" />
+              <input
+                type="text"
+                value={inventoryQuery}
+                onChange={(event) => setInventoryQuery(event.target.value)}
+                placeholder="Search nodes"
+              />
+            </div>
+            <div className="rr-node-inventory__list">
+              {filteredGroups.map((group) => {
+                const collapsed = collapsedGroups.has(group.id);
+                const showNodes = !collapsed || inventoryQuery.trim().length > 0;
+                return (
+                  <div key={group.id} className="rr-node-group">
+                    <button
+                      type="button"
+                      className="rr-node-group__toggle"
+                      onClick={() => toggleGroup(group.id)}
+                    >
+                      <span>{group.label}</span>
+                      <img
+                        src={iconUrl(collapsed ? "chevron-right" : "chevron-down")}
+                        alt=""
+                      />
+                    </button>
+                    {showNodes && (
+                      <div className="rr-node-group__items">
+                        {group.nodes.map((node) => {
+                          const icon = getIconForKey(node);
+                          return (
+                            <button
+                              key={node}
+                              type="button"
+                              className="rr-node-item"
+                              onClick={() => addInventoryNode(node, group.id)}
+                              onMouseEnter={(event) =>
+                                showInventoryTooltip(event, node)
+                              }
+                              onMouseLeave={hideInventoryTooltip}
+                            >
+                              <span className="rr-node-item__icon">
+                                <img src={icon.url} alt="" />
+                              </span>
+                              <span className="rr-node-item__label">{node}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </aside>
-      {inventoryTooltip &&
-        createPortal(
-          <div
-            className="rr-node-item__tooltip rr-node-item__tooltip--portal"
-            style={{
-              top: `${inventoryTooltip.rect.top + inventoryTooltip.rect.height / 2}px`,
-              left: `${inventoryTooltip.rect.left - 12}px`,
-            }}
-            onMouseEnter={() => {
-              if (hideTooltipTimer.current) {
-                clearTimeout(hideTooltipTimer.current);
+                );
+              })}
+            </div>
+          </aside>
+          {inventoryTooltip &&
+            createPortal(
+              <div
+                className="rr-node-item__tooltip rr-node-item__tooltip--portal"
+                style={{
+                  top: `${inventoryTooltip.rect.top + inventoryTooltip.rect.height / 2}px`,
+                  left: `${inventoryTooltip.rect.left - 12}px`,
+                }}
+                onMouseEnter={() => {
+                  if (hideTooltipTimer.current) {
+                    clearTimeout(hideTooltipTimer.current);
+                  }
+                  setIsTooltipHovered(true);
+                }}
+                onMouseLeave={() => {
+                  setIsTooltipHovered(false);
+                  setInventoryTooltip(null);
+                }}
+              >
+                <span className="rr-node-item__tooltip-title">
+                  {inventoryTooltip.title}
+                </span>
+                <span className="rr-node-item__tooltip-body">
+                  {inventoryTooltip.description}
+                </span>
+                <span className="rr-node-item__tooltip-doc">
+                  <img src={iconUrl("file")} alt="" />
+                  Docs
+                </span>
+              </div>,
+              document.body
+            )}
+          <ReactFlow
+            nodes={decoratedNodes}
+            edges={decoratedEdges}
+            onNodesChange={handleNodesChange}
+            onEdgesChange={handleEdgesChange}
+            onConnect={onConnect}
+            onConnectStart={handleConnectStart}
+            onConnectEnd={handleConnectEnd}
+            isValidConnection={isValidConnection}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
+            onEdgeMouseLeave={() => setHoveredEdgeId(null)}
+            onEdgeClick={(_, edge) => setSelectedEdgeId(edge.id)}
+            onPaneClick={() => {
+              setSelectedEdgeId(null);
+              if (Date.now() - suppressPaneClickRef.current < 200) {
+                return;
               }
-              setIsTooltipHovered(true);
+              setConnectMenu(null);
+              setConnectingLabel(null);
+              setConnectPreview(null);
+              setConfigOpen(false);
+              setSelectedNodeId(null);
             }}
-            onMouseLeave={() => {
-              setIsTooltipHovered(false);
-              setInventoryTooltip(null);
+            onNodeClick={(_, node) => {
+              setSelectedEdgeId(null);
+              if (didDragNodeRef.current) {
+                didDragNodeRef.current = false;
+                return;
+              }
+              if (node.type !== "rrNode") {
+                return;
+              }
+              setSelectedNodeId(node.id);
+              setConfigOpen(false);
+              setDrawerOpen(true);
+              setInventoryOpen(false);
             }}
+            onNodeDoubleClick={(_, node) => {
+              if (node.type !== "rrNode") return;
+              setSelectedNodeId(node.id);
+              setConfigOpen(true);
+              setDrawerOpen(true);
+              setInventoryOpen(false);
+            }}
+            onNodeDragStart={() => {
+              didDragNodeRef.current = false;
+            }}
+            onNodeDrag={() => {
+              didDragNodeRef.current = true;
+            }}
+            onNodeDragStop={() => {
+              window.setTimeout(() => {
+                didDragNodeRef.current = false;
+              }, 0);
+            }}
+            fitView={options.fitView}
+            minZoom={options.minZoom}
+            maxZoom={options.maxZoom}
+            nodesDraggable={!isCanvasLocked}
+            nodesConnectable={!isCanvasLocked}
+            onInit={setReactFlowInstance}
+            onMove={(_, nextViewport) => {
+              viewportRef.current = nextViewport;
+            }}
+            proOptions={{ hideAttribution: true }}
           >
-            <span className="rr-node-item__tooltip-title">
-              {inventoryTooltip.title}
-            </span>
-            <span className="rr-node-item__tooltip-body">
-              {inventoryTooltip.description}
-            </span>
-            <span className="rr-node-item__tooltip-doc">
-              <img src={iconUrl("file")} alt="" />
-              Docs
-            </span>
-          </div>,
-          document.body
-        )}
-      <ReactFlow
-        nodes={decoratedNodes}
-        edges={decoratedEdges}
-        onNodesChange={handleNodesChange}
-        onEdgesChange={handleEdgesChange}
-        onConnect={onConnect}
-        onConnectStart={handleConnectStart}
-        onConnectEnd={handleConnectEnd}
-        isValidConnection={isValidConnection}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
-        onEdgeMouseLeave={() => setHoveredEdgeId(null)}
-        onEdgeClick={(_, edge) => setSelectedEdgeId(edge.id)}
-        onPaneClick={() => {
-          setSelectedEdgeId(null);
-          if (Date.now() - suppressPaneClickRef.current < 200) {
-            return;
-          }
-          setConnectMenu(null);
-          setConnectingLabel(null);
-          setConnectPreview(null);
-          setConfigOpen(false);
-          setSelectedNodeId(null);
-        }}
-        onNodeClick={(_, node) => {
-          setSelectedEdgeId(null);
-          if (didDragNodeRef.current) {
-            didDragNodeRef.current = false;
-            return;
-          }
-          if (node.type !== "rrNode") {
-            return;
-          }
-          setSelectedNodeId(node.id);
-          setConfigOpen(false);
-          setDrawerOpen(true);
-          setInventoryOpen(false);
-        }}
-        onNodeDoubleClick={(_, node) => {
-          if (node.type !== "rrNode") return;
-          setSelectedNodeId(node.id);
-          setConfigOpen(true);
-          setDrawerOpen(true);
-          setInventoryOpen(false);
-        }}
-        onNodeDragStart={() => {
-          didDragNodeRef.current = false;
-        }}
-        onNodeDrag={() => {
-          didDragNodeRef.current = true;
-        }}
-        onNodeDragStop={() => {
-          window.setTimeout(() => {
-            didDragNodeRef.current = false;
-          }, 0);
-        }}
-        fitView={options.fitView}
-        minZoom={options.minZoom}
-        maxZoom={options.maxZoom}
-        nodesDraggable={!isCanvasLocked}
-        nodesConnectable={!isCanvasLocked}
-        onInit={setReactFlowInstance}
-        onMove={(_, nextViewport) => {
-          viewportRef.current = nextViewport;
-        }}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background gap={24} size={1} color="rgba(255,255,255,0.08)" />
-      </ReactFlow>
-      {connectPreview && connectingLabel && (
+            <Background gap={24} size={1} color="rgba(255,255,255,0.08)" />
+          </ReactFlow>
+        </>
+      ) : (
+        <DropperWorkspace
+          workspace={dropperWorkspace}
+          activeTab={activeDropperTab}
+          onTabChange={setActiveResultTab}
+          onAddFiles={handleAddDropperFiles}
+          onSelectFile={handleSelectDropperFile}
+          onDeleteFile={handleDeleteDropperFile}
+          onCopy={handleCopyDropperContent}
+          onDownload={handleDownloadDropperContent}
+        />
+      )}
+      {canvasMode === "build" && connectPreview && connectingLabel && (
         <div
           className="rr-connect-preview"
           style={{
@@ -2471,7 +2975,7 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
           <span className="rr-connect-preview__icon" aria-hidden="true" />
         </div>
       )}
-      {selectedNode && (
+      {canvasMode === "build" && selectedNode && (
         <aside
           ref={configRef}
           className={`rr-node-panel ${configOpen ? "is-open" : ""}`}
@@ -2532,6 +3036,17 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
             <div className="rr-node-panel__summary">
               {getNodeDescription(selectedNode.data?.title)}
             </div>
+            {isSelectedDropperNode && (
+              <div className="rr-node-panel__dropper-action">
+                <button
+                  type="button"
+                  className="rr-button rr-button--primary"
+                  onClick={() => openDropperWorkspace(selectedNode.id)}
+                >
+                  Drop files
+                </button>
+              </div>
+            )}
             {selectedConfigSections.map((section) => (
               <div key={section.title} className="rr-node-panel__section">
                 <span className="rr-node-panel__section-title">
@@ -2557,11 +3072,12 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
           </div>
         </aside>
       )}
-      <section
-        ref={drawerRef}
-        className={`rr-node-console ${drawerOpen ? "is-open" : "is-collapsed"}`}
-        style={{ "--rr-drawer-height": `${drawerHeight}px` }}
-      >
+      {canvasMode === "build" && (
+        <section
+          ref={drawerRef}
+          className={`rr-node-console ${drawerOpen ? "is-open" : "is-collapsed"}`}
+          style={{ "--rr-drawer-height": `${drawerHeight}px` }}
+        >
         <button
           type="button"
           className="rr-node-console__resize"
@@ -2614,6 +3130,20 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
           {!resolvedRuntimeContext ? (
             <div className="rr-node-console__empty">
               Select a node to inspect output, run, logs, and metrics.
+            </div>
+          ) : isSelectedDropperNode ? (
+            <div className="rr-node-console__panel">
+              <div className="rr-node-console__dropper">
+                <p className="rr-empty-title">Dropper Results</p>
+                <p>Open the Results workspace to upload files and inspect extracted outputs.</p>
+                <button
+                  type="button"
+                  className="rr-button rr-button--primary"
+                  onClick={() => openDropperWorkspace(selectedNode.id)}
+                >
+                  Drop files
+                </button>
+              </div>
             </div>
           ) : drawerTab === "output" ? (
             <div className="rr-node-console__panel">
@@ -2727,7 +3257,8 @@ export default function ProjectsCanvas({ flowOptions, projectId }) {
             </div>
           )}
         </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

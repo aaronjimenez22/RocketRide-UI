@@ -2,6 +2,11 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 import { getIconForKey } from "../utils/iconLibrary";
 
 const STORAGE_KEY = "rr-projects-store";
+const DEFAULT_DROPPER_WORKSPACE = {
+  view: "build",
+  files: [],
+  selectedFileId: null,
+};
 
 const makeRuns = () => {
   const statuses = ["success", "failure", "warning"];
@@ -50,6 +55,10 @@ const buildProject = (overrides) => ({
   filesUploaded: overrides.filesUploaded ?? 0,
   pipelineRuns: overrides.pipelineRuns ?? [],
   lastRuns: overrides.lastRuns ?? makeRuns(),
+  dropperWorkspace: {
+    ...DEFAULT_DROPPER_WORKSPACE,
+    ...(overrides.dropperWorkspace ?? {}),
+  },
 });
 
 const seedProjects = () => {
@@ -180,6 +189,10 @@ const loadProjects = () => {
         ...run,
         timestamp: new Date(run.timestamp),
       })),
+      dropperWorkspace: {
+        ...DEFAULT_DROPPER_WORKSPACE,
+        ...(project.dropperWorkspace ?? {}),
+      },
     }));
   } catch {
     return seedProjects();
@@ -195,10 +208,13 @@ export const ProjectsProvider = ({ children }) => {
   );
 
   const persist = useCallback((next) => {
-    setProjects(next);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    }
+    setProjects((prev) => {
+      const resolved = typeof next === "function" ? next(prev) : next;
+      if (typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(resolved));
+      }
+      return resolved;
+    });
   }, []);
 
   const updateProject = useCallback(

@@ -116,6 +116,8 @@ function FlowNode({ id, data }) {
   const highlightInputLabel = data.highlightInputLabel;
   const isSource =
     data.isSource || data.meta?.toLowerCase() === "source" || inputs.length === 0;
+  const isDropperNode = data.title === "Dropper";
+  const showDropperAction = isDropperNode && runState === "loading";
 
   const handleMenuAction = (action) => {
     console.log(`${action} clicked for node ${id}`);
@@ -339,6 +341,20 @@ function FlowNode({ id, data }) {
           ))}
         </div>
       </div>
+      {showDropperAction && (
+        <div className="rr-flow-node__dropper">
+          <button
+            type="button"
+            className="rr-button rr-button--primary rr-flow-node__dropper-button nodrag"
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onOpenDropper?.(id);
+            }}
+          >
+            Drop files
+          </button>
+        </div>
+      )}
     </div>
   );
 }
